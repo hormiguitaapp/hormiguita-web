@@ -29,7 +29,10 @@ export default function MfaPage() {
       return "/dashboard";
     }
 
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
     const next = params.get("next");
 
     if (next && next.startsWith("/")) {
@@ -43,7 +46,7 @@ export default function MfaPage() {
     setError("");
 
     const {
-      data: { factors },
+      data,
       error: factorsError,
     } = await supabase.auth.mfa.listFactors();
 
@@ -53,13 +56,13 @@ export default function MfaPage() {
       );
     }
 
-    const verifiedFactor = factors?.totp?.find(
-      (factor: MfaFactor) => factor.status === "verified"
+    const verifiedFactor = (
+      data?.totp ?? []
+    ).find(
+      (factor: MfaFactor) =>
+        factor.status === "verified"
     );
 
-    // IMPORTANTE:
-    // No redirigimos al login.
-    // Mostramos el problema para poder diagnosticarlo.
     if (!verifiedFactor) {
       throw new Error(
         "No encontramos un factor 2FA verificado en la sesión actual."
@@ -71,11 +74,15 @@ export default function MfaPage() {
     const {
       data: challengeData,
       error: challengeError,
-    } = await supabase.auth.mfa.challenge({
-      factorId: verifiedFactor.id,
-    });
+    } =
+      await supabase.auth.mfa.challenge({
+        factorId: verifiedFactor.id,
+      });
 
-    if (challengeError || !challengeData?.id) {
+    if (
+      challengeError ||
+      !challengeData?.id
+    ) {
       throw new Error(
         "No pudimos generar el desafío de autenticación."
       );
@@ -85,21 +92,31 @@ export default function MfaPage() {
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const init = async () => {
       try {
         await createChallenge();
       } catch (err) {
+        if (!mounted) return;
+
         setError(
           err instanceof Error
             ? err.message
             : "Ocurrió un error con la autenticación."
         );
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     init();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleVerify = async (
@@ -107,8 +124,14 @@ export default function MfaPage() {
   ) => {
     event.preventDefault();
 
-    if (code.length !== 6) {
-      setError("Ingresá el código de 6 dígitos.");
+    const cleanCode = code
+      .replace(/\D/g, "")
+      .slice(0, 6);
+
+    if (cleanCode.length !== 6) {
+      setError(
+        "Ingresá el código de 6 dígitos."
+      );
       return;
     }
 
@@ -123,12 +146,13 @@ export default function MfaPage() {
     setVerifying(true);
 
     try {
-      const { error: verifyError } =
-        await supabase.auth.mfa.verify({
-          factorId,
-          challengeId,
-          code,
-        });
+      const {
+        error: verifyError,
+      } = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId,
+        code: cleanCode,
+      });
 
       if (verifyError) {
         throw new Error(
@@ -168,9 +192,9 @@ export default function MfaPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#080b10] flex items-center justify-center px-6">
+      <main className="flex min-h-screen items-center justify-center bg-[#080b10] px-6">
         <div className="text-center">
-          <div className="text-4xl mb-4">
+          <div className="mb-4 text-4xl">
             🐜
           </div>
 
@@ -183,12 +207,12 @@ export default function MfaPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#080b10] flex items-center justify-center px-6">
+    <main className="flex min-h-screen items-center justify-center bg-[#080b10] px-6">
       <div className="w-full max-w-md">
         <div className="rounded-3xl border border-gray-800 bg-[#10151d] p-8 shadow-2xl">
 
-          <div className="text-center mb-8">
-            <div className="text-5xl mb-4">
+          <div className="mb-8 text-center">
+            <div className="mb-4 text-5xl">
               🔐
             </div>
 
@@ -196,7 +220,7 @@ export default function MfaPage() {
               Verificación en dos pasos
             </h1>
 
-            <p className="text-gray-400 mt-3">
+            <p className="mt-3 text-gray-400">
               Abrí tu aplicación autenticadora e
               ingresá el código de 6 dígitos.
             </p>
@@ -209,10 +233,9 @@ export default function MfaPage() {
           )}
 
           <form onSubmit={handleVerify}>
-
             <label
               htmlFor="mfa-code"
-              className="block text-sm font-medium text-gray-300 mb-2"
+              className="mb-2 block text-sm font-medium text-gray-300"
             >
               Código de seguridad
             </label>
@@ -232,8 +255,8 @@ export default function MfaPage() {
                 )
               }
               placeholder="123456"
-              className="w-full rounded-2xl border border-gray-700 bg-[#0b0f15] px-5 py-4 text-center text-2xl tracking-[0.5em] text-white outline-none focus:border-emerald-500"
               autoFocus
+              className="w-full rounded-2xl border border-gray-700 bg-[#0b0f15] px-5 py-4 text-center text-2xl tracking-[0.5em] text-white outline-none focus:border-emerald-500"
             />
 
             <button
@@ -254,16 +277,17 @@ export default function MfaPage() {
 
           <button
             type="button"
-            onClick={() => router.push("/login")}
+            onClick={() =>
+              router.push("/login")
+            }
             className="mt-4 w-full rounded-2xl border border-gray-700 px-5 py-3 font-semibold text-gray-400 transition hover:bg-white/5 hover:text-white"
           >
             Volver al inicio de sesión
           </button>
 
-          <p className="text-center text-xs text-gray-500 mt-6">
+          <p className="mt-6 text-center text-xs text-gray-500">
             Tu código cambia cada pocos segundos.
           </p>
-
         </div>
       </div>
     </main>

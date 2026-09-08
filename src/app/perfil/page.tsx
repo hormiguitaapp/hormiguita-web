@@ -26,19 +26,22 @@ type MfaFactor = {
 };
 
 export default function PerfilPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] =
+    useState<Profile | null>(null);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
 
   const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
 
   const [avatarPreview, setAvatarPreview] =
     useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] =
+    useState(false);
   const [savingPassword, setSavingPassword] =
     useState(false);
   const [uploadingAvatar, setUploadingAvatar] =
@@ -51,7 +54,8 @@ export default function PerfilPage() {
   // MFA / 2FA
   // =========================
 
-  const [mfaLoading, setMfaLoading] = useState(false);
+  const [mfaLoading, setMfaLoading] =
+    useState(false);
 
   const [mfaFactor, setMfaFactor] =
     useState<MfaFactor | null>(null);
@@ -175,13 +179,13 @@ export default function PerfilPage() {
     const verifiedFactor =
       data?.totp?.find(
         (factor) =>
-          factor.status === "verified"
+          String(factor.status) === "verified"
       );
 
     const unverifiedFactor =
       data?.totp?.find(
         (factor) =>
-          factor.status === "unverified"
+          String(factor.status) === "unverified"
       );
 
     const activeFactor =
@@ -197,15 +201,21 @@ export default function PerfilPage() {
           "HormiGUITA",
         factor_type:
           activeFactor.factor_type,
-        status: activeFactor.status,
+        status:
+          String(activeFactor.status) ===
+          "verified"
+            ? "verified"
+            : "unverified",
       });
     } else {
       setMfaFactor(null);
     }
 
     const {
-      data: { user },
+      data: userData,
     } = await supabase.auth.getUser();
+
+    const user = userData.user;
 
     if (!user) return;
 
@@ -365,7 +375,9 @@ export default function PerfilPage() {
       "image/webp",
     ];
 
-    if (!allowedTypes.includes(file.type)) {
+    if (
+      !allowedTypes.includes(file.type)
+    ) {
       setError(
         "Solo se permiten imágenes JPG, PNG o WEBP."
       );
@@ -405,11 +417,13 @@ export default function PerfilPage() {
     let extension = "jpg";
 
     if (
-      file.type === "image/png"
+      file.type ===
+      "image/png"
     ) {
       extension = "png";
     } else if (
-      file.type === "image/webp"
+      file.type ===
+      "image/webp"
     ) {
       extension = "webp";
     }
@@ -423,6 +437,7 @@ export default function PerfilPage() {
     setAvatarPreview(previewUrl);
 
     // 1. Subir nueva foto
+
     const {
       error: uploadError,
     } = await supabase.storage
@@ -452,6 +467,7 @@ export default function PerfilPage() {
     }
 
     // 2. Guardar nueva ruta
+
     const {
       error: updateError,
     } = await supabase
@@ -480,6 +496,7 @@ export default function PerfilPage() {
     }
 
     // 3. Crear URL firmada
+
     const {
       data: signedData,
       error: signedError,
@@ -508,6 +525,7 @@ export default function PerfilPage() {
     );
 
     // 4. Actualizar estado
+
     setProfile((current) =>
       current
         ? {
@@ -518,9 +536,12 @@ export default function PerfilPage() {
     );
 
     // 5. Eliminar foto anterior
+
     if (
       oldAvatarPath &&
-      !oldAvatarPath.startsWith("http") &&
+      !oldAvatarPath.startsWith(
+        "http"
+      ) &&
       oldAvatarPath !== filePath
     ) {
       const {
@@ -558,18 +579,20 @@ export default function PerfilPage() {
 
     try {
       const {
-        data: factors,
+        data,
         error: factorsError,
-      } = await supabase.auth.mfa.listFactors();
+      } =
+        await supabase.auth.mfa.listFactors();
 
       if (factorsError) {
         throw factorsError;
       }
 
       const verifiedFactor =
-        factors?.totp?.find(
+        data?.totp?.find(
           (factor) =>
-            factor.status === "verified"
+            String(factor.status) ===
+            "verified"
         );
 
       if (verifiedFactor) {
@@ -593,18 +616,24 @@ export default function PerfilPage() {
 
       // Si hay una configuración pendiente,
       // la eliminamos antes de crear otra.
+
       const pendingFactor =
-        factors?.totp?.find(
+        data?.totp?.find(
           (factor) =>
-            factor.status === "unverified"
+            String(factor.status) ===
+            "unverified"
         );
 
       if (pendingFactor) {
         const {
           error: removePendingError,
-        } = await supabase.auth.mfa.unenroll({
-          factorId: pendingFactor.id,
-        });
+        } =
+          await supabase.auth.mfa.unenroll(
+            {
+              factorId:
+                pendingFactor.id,
+            }
+          );
 
         if (removePendingError) {
           throw removePendingError;
@@ -612,51 +641,67 @@ export default function PerfilPage() {
       }
 
       // Crear nuevo factor TOTP
+
       const {
-        data,
+        data: enrollData,
         error: enrollError,
-      } = await supabase.auth.mfa.enroll({
-        factorType: "totp",
-        friendlyName: "HormiGUITA",
-      });
+      } =
+        await supabase.auth.mfa.enroll({
+          factorType: "totp",
+          friendlyName: "HormiGUITA",
+        });
 
       if (enrollError) {
         throw enrollError;
       }
 
-      if (!data) {
+      if (!enrollData) {
         throw new Error(
           "Supabase no devolvió los datos del factor."
         );
       }
 
       setMfaFactor({
-        id: data.id,
+        id: enrollData.id,
         friendly_name:
-          data.friendly_name ??
+          enrollData.friendly_name ??
           "HormiGUITA",
-        factor_type: data.type,
+        factor_type:
+          enrollData.type,
         status: "unverified",
       });
 
       setMfaQrCode(
-        data.totp?.qr_code ?? null
+        enrollData.totp?.qr_code ??
+        null
       );
 
       setMfaSecret(
-        data.totp?.secret ?? null
+        enrollData.totp?.secret ??
+        null
       );
 
       // Crear challenge
+
       const {
         data: challengeData,
         error: challengeError,
-      } = await supabase.auth.mfa.challenge({
-        factorId: data.id,
-      });
+      } =
+        await supabase.auth.mfa.challenge(
+          {
+            factorId:
+              enrollData.id,
+          }
+        );
 
       if (challengeError) {
         throw challengeError;
+      }
+
+      if (!challengeData?.id) {
+        throw new Error(
+          "No se pudo generar el desafío MFA."
+        );
       }
 
       setMfaChallengeId(
@@ -714,12 +759,16 @@ export default function PerfilPage() {
     try {
       const {
         error: verifyError,
-      } = await supabase.auth.mfa.verify({
-        factorId: mfaFactor.id,
-        challengeId:
-          mfaChallengeId,
-        code,
-      });
+      } =
+        await supabase.auth.mfa.verify(
+          {
+            factorId:
+              mfaFactor.id,
+            challengeId:
+              mfaChallengeId,
+            code,
+          }
+        );
 
       if (verifyError) {
         throw verifyError;
@@ -727,17 +776,20 @@ export default function PerfilPage() {
 
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
       if (user) {
         const {
           error: profileUpdateError,
-        } = await supabase
-          .from("profiles")
-          .update({
-            two_factor_enabled: true,
-          })
-          .eq("id", user.id);
+        } =
+          await supabase
+            .from("profiles")
+            .update({
+              two_factor_enabled:
+                true,
+            })
+            .eq("id", user.id);
 
         if (profileUpdateError) {
           console.warn(
@@ -751,7 +803,8 @@ export default function PerfilPage() {
         current
           ? {
               ...current,
-              two_factor_enabled: true,
+              two_factor_enabled:
+                true,
             }
           : current
       );
@@ -819,6 +872,7 @@ export default function PerfilPage() {
        * Para eliminar un factor verificado,
        * Supabase exige una sesión con AAL2.
        */
+
       const {
         data: assuranceData,
         error: assuranceError,
@@ -840,9 +894,13 @@ export default function PerfilPage() {
 
       const {
         error: unenrollError,
-      } = await supabase.auth.mfa.unenroll({
-        factorId: mfaFactor.id,
-      });
+      } =
+        await supabase.auth.mfa.unenroll(
+          {
+            factorId:
+              mfaFactor.id,
+          }
+        );
 
       if (unenrollError) {
         throw unenrollError;
@@ -856,7 +914,8 @@ export default function PerfilPage() {
         await supabase
           .from("profiles")
           .update({
-            two_factor_enabled: false,
+            two_factor_enabled:
+              false,
           })
           .eq("id", user.id);
       }
@@ -867,7 +926,8 @@ export default function PerfilPage() {
         current
           ? {
               ...current,
-              two_factor_enabled: false,
+              two_factor_enabled:
+                false,
             }
           : current
       );
@@ -907,9 +967,7 @@ export default function PerfilPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#080a0d] text-white">
-
         <div className="text-center">
-
           <div className="mb-4 text-5xl">
             🐜
           </div>
@@ -917,9 +975,7 @@ export default function PerfilPage() {
           <p className="text-gray-400">
             Cargando tu perfil...
           </p>
-
         </div>
-
       </main>
     );
   }
@@ -935,7 +991,6 @@ export default function PerfilPage() {
           href="/dashboard"
           className="flex items-center gap-3"
         >
-
           <Image
             src="/logo-HormiGUITA.png"
             alt="HormiGUITA"
@@ -950,7 +1005,6 @@ export default function PerfilPage() {
               GUITA
             </span>
           </span>
-
         </Link>
 
         <nav className="mt-10 space-y-2">
@@ -1108,7 +1162,6 @@ export default function PerfilPage() {
                         : "cursor-pointer hover:bg-white/5"
                     }`}
                   >
-
                     {uploadingAvatar
                       ? "Subiendo..."
                       : "Cambiar foto"}
@@ -1120,7 +1173,6 @@ export default function PerfilPage() {
                       disabled={uploadingAvatar}
                       className="hidden"
                     />
-
                   </label>
 
                 </div>
@@ -1215,7 +1267,9 @@ export default function PerfilPage() {
                   type="password"
                   value={newPassword}
                   onChange={(e) =>
-                    setNewPassword(e.target.value)
+                    setNewPassword(
+                      e.target.value
+                    )
                   }
                   placeholder="Mínimo 8 caracteres"
                   className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none focus:border-[#27d59b]"
@@ -1233,7 +1287,9 @@ export default function PerfilPage() {
                   type="password"
                   value={confirmPassword}
                   onChange={(e) =>
-                    setConfirmPassword(e.target.value)
+                    setConfirmPassword(
+                      e.target.value
+                    )
                   }
                   placeholder="Repetí la nueva contraseña"
                   className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none focus:border-[#27d59b]"
@@ -1335,11 +1391,14 @@ export default function PerfilPage() {
                     <div className="flex flex-col items-center justify-center">
 
                       {mfaQrCode ? (
+
                         <div className="rounded-2xl bg-white p-4">
 
                           <img
                             src={
-                              mfaQrCode.startsWith("data:")
+                              mfaQrCode.startsWith(
+                                "data:"
+                              )
                                 ? mfaQrCode
                                 : `data:image/svg+xml;utf8,${encodeURIComponent(
                                     mfaQrCode
@@ -1350,10 +1409,13 @@ export default function PerfilPage() {
                           />
 
                         </div>
+
                       ) : (
+
                         <div className="flex h-64 w-64 items-center justify-center rounded-2xl border border-gray-800 bg-[#111720] text-center text-sm text-gray-500">
                           No se pudo cargar el código QR.
                         </div>
+
                       )}
 
                       {mfaSecret && (
@@ -1388,10 +1450,12 @@ export default function PerfilPage() {
                         value={mfaCode}
                         onChange={(e) =>
                           setMfaCode(
-                            e.target.value.replace(
-                              /\D/g,
-                              ""
-                            )
+                            e.target.value
+                              .replace(
+                                /\D/g,
+                                ""
+                              )
+                              .slice(0, 6)
                           )
                         }
                         placeholder="123456"
