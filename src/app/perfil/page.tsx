@@ -8,6 +8,7 @@ import {
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import Sidebar from "@/components/sidebar";
 import { supabase } from "@/lib/supabase";
 
 type Profile = {
@@ -29,26 +30,38 @@ export default function PerfilPage() {
   const [profile, setProfile] =
     useState<Profile | null>(null);
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [name, setName] =
+    useState("");
 
-  const [newPassword, setNewPassword] = useState("");
+  const [email, setEmail] =
+    useState("");
+
+  const [newPassword, setNewPassword] =
+    useState("");
+
   const [confirmPassword, setConfirmPassword] =
     useState("");
 
   const [avatarPreview, setAvatarPreview] =
     useState<string | null>(null);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] =
+    useState(true);
+
   const [savingProfile, setSavingProfile] =
     useState(false);
+
   const [savingPassword, setSavingPassword] =
     useState(false);
+
   const [uploadingAvatar, setUploadingAvatar] =
     useState(false);
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [message, setMessage] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
 
   // =========================
   // MFA / 2FA
@@ -69,7 +82,8 @@ export default function PerfilPage() {
   const [mfaChallengeId, setMfaChallengeId] =
     useState<string | null>(null);
 
-  const [mfaCode, setMfaCode] = useState("");
+  const [mfaCode, setMfaCode] =
+    useState("");
 
   const [showMfaSetup, setShowMfaSetup] =
     useState(false);
@@ -92,7 +106,9 @@ export default function PerfilPage() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      setError("No hay una sesión iniciada.");
+      setError(
+        "No hay una sesión iniciada."
+      );
       setLoading(false);
       return;
     }
@@ -117,26 +133,41 @@ export default function PerfilPage() {
     }
 
     setProfile(data);
-    setName(data.full_name ?? "");
-    setEmail(data.email ?? user.email ?? "");
+
+    setName(
+      data.full_name ?? ""
+    );
+
+    setEmail(
+      data.email ??
+        user.email ??
+        ""
+    );
 
     // =========================
     // AVATAR
     // =========================
 
     if (data.avatar_url) {
-      if (data.avatar_url.startsWith("http")) {
-        setAvatarPreview(data.avatar_url);
+      if (
+        data.avatar_url.startsWith(
+          "http"
+        )
+      ) {
+        setAvatarPreview(
+          data.avatar_url
+        );
       } else {
         const {
           data: signedData,
           error: signedError,
-        } = await supabase.storage
-          .from("avatars")
-          .createSignedUrl(
-            data.avatar_url,
-            60 * 60
-          );
+        } =
+          await supabase.storage
+            .from("avatars")
+            .createSignedUrl(
+              data.avatar_url,
+              60 * 60
+            );
 
         if (
           !signedError &&
@@ -166,7 +197,8 @@ export default function PerfilPage() {
     const {
       data,
       error: factorsError,
-    } = await supabase.auth.mfa.listFactors();
+    } =
+      await supabase.auth.mfa.listFactors();
 
     if (factorsError) {
       console.error(
@@ -179,13 +211,15 @@ export default function PerfilPage() {
     const verifiedFactor =
       data?.totp?.find(
         (factor) =>
-          String(factor.status) === "verified"
+          String(factor.status) ===
+          "verified"
       );
 
     const unverifiedFactor =
       data?.totp?.find(
         (factor) =>
-          String(factor.status) === "unverified"
+          String(factor.status) ===
+          "unverified"
       );
 
     const activeFactor =
@@ -202,8 +236,9 @@ export default function PerfilPage() {
         factor_type:
           activeFactor.factor_type,
         status:
-          String(activeFactor.status) ===
-          "verified"
+          String(
+            activeFactor.status
+          ) === "verified"
             ? "verified"
             : "unverified",
       });
@@ -213,7 +248,8 @@ export default function PerfilPage() {
 
     const {
       data: userData,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     const user = userData.user;
 
@@ -259,10 +295,13 @@ export default function PerfilPage() {
 
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
     if (!user) {
-      setError("Tu sesión expiró.");
+      setError(
+        "Tu sesión expiró."
+      );
       return;
     }
 
@@ -271,16 +310,18 @@ export default function PerfilPage() {
     const {
       data,
       error: updateError,
-    } = await supabase
-      .from("profiles")
-      .update({
-        full_name: name.trim(),
-      })
-      .eq("id", user.id)
-      .select(
-        "id, full_name, email, avatar_url, two_factor_enabled"
-      )
-      .single();
+    } =
+      await supabase
+        .from("profiles")
+        .update({
+          full_name:
+            name.trim(),
+        })
+        .eq("id", user.id)
+        .select(
+          "id, full_name, email, avatar_url, two_factor_enabled"
+        )
+        .single();
 
     if (updateError) {
       setError(
@@ -291,7 +332,10 @@ export default function PerfilPage() {
     }
 
     setProfile(data);
-    setName(data.full_name ?? "");
+
+    setName(
+      data.full_name ?? ""
+    );
 
     setMessage(
       "Perfil actualizado correctamente."
@@ -312,7 +356,9 @@ export default function PerfilPage() {
     setMessage("");
     setError("");
 
-    if (newPassword.length < 8) {
+    if (
+      newPassword.length < 8
+    ) {
       setError(
         "La nueva contraseña debe tener al menos 8 caracteres."
       );
@@ -320,7 +366,8 @@ export default function PerfilPage() {
     }
 
     if (
-      newPassword !== confirmPassword
+      newPassword !==
+      confirmPassword
     ) {
       setError(
         "Las contraseñas no coinciden."
@@ -332,9 +379,13 @@ export default function PerfilPage() {
 
     const {
       error: passwordError,
-    } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
+    } =
+      await supabase.auth.updateUser(
+        {
+          password:
+            newPassword,
+        }
+      );
 
     if (passwordError) {
       setError(
@@ -376,7 +427,9 @@ export default function PerfilPage() {
     ];
 
     if (
-      !allowedTypes.includes(file.type)
+      !allowedTypes.includes(
+        file.type
+      )
     ) {
       setError(
         "Solo se permiten imágenes JPG, PNG o WEBP."
@@ -399,9 +452,13 @@ export default function PerfilPage() {
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } =
+      await supabase.auth.getUser();
 
-    if (userError || !user) {
+    if (
+      userError ||
+      !user
+    ) {
       setError(
         "Tu sesión expiró. Volvé a iniciar sesión."
       );
@@ -412,7 +469,8 @@ export default function PerfilPage() {
     setUploadingAvatar(true);
 
     const oldAvatarPath =
-      profile?.avatar_url ?? null;
+      profile?.avatar_url ??
+      null;
 
     let extension = "jpg";
 
@@ -434,23 +492,28 @@ export default function PerfilPage() {
     const previewUrl =
       URL.createObjectURL(file);
 
-    setAvatarPreview(previewUrl);
+    setAvatarPreview(
+      previewUrl
+    );
 
     // 1. Subir nueva foto
 
     const {
       error: uploadError,
-    } = await supabase.storage
-      .from("avatars")
-      .upload(
-        filePath,
-        file,
-        {
-          cacheControl: "3600",
-          upsert: false,
-          contentType: file.type,
-        }
-      );
+    } =
+      await supabase.storage
+        .from("avatars")
+        .upload(
+          filePath,
+          file,
+          {
+            cacheControl:
+              "3600",
+            upsert: false,
+            contentType:
+              file.type,
+          }
+        );
 
     if (uploadError) {
       URL.revokeObjectURL(
@@ -461,7 +524,10 @@ export default function PerfilPage() {
         `No se pudo subir la foto: ${uploadError.message}`
       );
 
-      setUploadingAvatar(false);
+      setUploadingAvatar(
+        false
+      );
+
       event.target.value = "";
       return;
     }
@@ -470,17 +536,24 @@ export default function PerfilPage() {
 
     const {
       error: updateError,
-    } = await supabase
-      .from("profiles")
-      .update({
-        avatar_url: filePath,
-      })
-      .eq("id", user.id);
+    } =
+      await supabase
+        .from("profiles")
+        .update({
+          avatar_url:
+            filePath,
+        })
+        .eq(
+          "id",
+          user.id
+        );
 
     if (updateError) {
       await supabase.storage
         .from("avatars")
-        .remove([filePath]);
+        .remove([
+          filePath,
+        ]);
 
       URL.revokeObjectURL(
         previewUrl
@@ -490,7 +563,10 @@ export default function PerfilPage() {
         `La foto se subió, pero no se pudo guardar el perfil: ${updateError.message}`
       );
 
-      setUploadingAvatar(false);
+      setUploadingAvatar(
+        false
+      );
+
       event.target.value = "";
       return;
     }
@@ -500,12 +576,13 @@ export default function PerfilPage() {
     const {
       data: signedData,
       error: signedError,
-    } = await supabase.storage
-      .from("avatars")
-      .createSignedUrl(
-        filePath,
-        60 * 60
-      );
+    } =
+      await supabase.storage
+        .from("avatars")
+        .createSignedUrl(
+          filePath,
+          60 * 60
+        );
 
     if (
       signedError ||
@@ -515,7 +592,10 @@ export default function PerfilPage() {
         "La foto se guardó, pero no se pudo generar la vista previa."
       );
 
-      setUploadingAvatar(false);
+      setUploadingAvatar(
+        false
+      );
+
       event.target.value = "";
       return;
     }
@@ -530,7 +610,8 @@ export default function PerfilPage() {
       current
         ? {
             ...current,
-            avatar_url: filePath,
+            avatar_url:
+              filePath,
           }
         : current
     );
@@ -542,15 +623,17 @@ export default function PerfilPage() {
       !oldAvatarPath.startsWith(
         "http"
       ) &&
-      oldAvatarPath !== filePath
+      oldAvatarPath !==
+        filePath
     ) {
       const {
         error: deleteError,
-      } = await supabase.storage
-        .from("avatars")
-        .remove([
-          oldAvatarPath,
-        ]);
+      } =
+        await supabase.storage
+          .from("avatars")
+          .remove([
+            oldAvatarPath,
+          ]);
 
       if (deleteError) {
         console.warn(
@@ -564,7 +647,10 @@ export default function PerfilPage() {
       "Foto de perfil actualizada correctamente."
     );
 
-    setUploadingAvatar(false);
+    setUploadingAvatar(
+      false
+    );
+
     event.target.value = "";
   }
 
@@ -591,7 +677,9 @@ export default function PerfilPage() {
       const verifiedFactor =
         data?.totp?.find(
           (factor) =>
-            String(factor.status) ===
+            String(
+              factor.status
+            ) ===
             "verified"
         );
 
@@ -620,13 +708,16 @@ export default function PerfilPage() {
       const pendingFactor =
         data?.totp?.find(
           (factor) =>
-            String(factor.status) ===
+            String(
+              factor.status
+            ) ===
             "unverified"
         );
 
       if (pendingFactor) {
         const {
-          error: removePendingError,
+          error:
+            removePendingError,
         } =
           await supabase.auth.mfa.unenroll(
             {
@@ -635,7 +726,9 @@ export default function PerfilPage() {
             }
           );
 
-        if (removePendingError) {
+        if (
+          removePendingError
+        ) {
           throw removePendingError;
         }
       }
@@ -646,10 +739,14 @@ export default function PerfilPage() {
         data: enrollData,
         error: enrollError,
       } =
-        await supabase.auth.mfa.enroll({
-          factorType: "totp",
-          friendlyName: "HormiGUITA",
-        });
+        await supabase.auth.mfa.enroll(
+          {
+            factorType:
+              "totp",
+            friendlyName:
+              "HormiGUITA",
+          }
+        );
 
       if (enrollError) {
         throw enrollError;
@@ -668,17 +765,20 @@ export default function PerfilPage() {
           "HormiGUITA",
         factor_type:
           enrollData.type,
-        status: "unverified",
+        status:
+          "unverified",
       });
 
       setMfaQrCode(
-        enrollData.totp?.qr_code ??
-        null
+        enrollData.totp
+          ?.qr_code ??
+          null
       );
 
       setMfaSecret(
-        enrollData.totp?.secret ??
-        null
+        enrollData.totp
+          ?.secret ??
+          null
       );
 
       // Crear challenge
@@ -698,7 +798,9 @@ export default function PerfilPage() {
         throw challengeError;
       }
 
-      if (!challengeData?.id) {
+      if (
+        !challengeData?.id
+      ) {
         throw new Error(
           "No se pudo generar el desafío MFA."
         );
@@ -709,7 +811,9 @@ export default function PerfilPage() {
       );
 
       setMfaCode("");
-      setShowMfaSetup(true);
+      setShowMfaSetup(
+        true
+      );
     } catch (err) {
       console.error(
         "Error iniciando MFA:",
@@ -735,9 +839,14 @@ export default function PerfilPage() {
     setMessage("");
 
     const code =
-      mfaCode.replace(/\D/g, "");
+      mfaCode.replace(
+        /\D/g,
+        ""
+      );
 
-    if (code.length !== 6) {
+    if (
+      code.length !== 6
+    ) {
       setError(
         "Ingresá el código de 6 dígitos de tu aplicación autenticadora."
       );
@@ -781,7 +890,8 @@ export default function PerfilPage() {
 
       if (user) {
         const {
-          error: profileUpdateError,
+          error:
+            profileUpdateError,
         } =
           await supabase
             .from("profiles")
@@ -789,9 +899,14 @@ export default function PerfilPage() {
               two_factor_enabled:
                 true,
             })
-            .eq("id", user.id);
+            .eq(
+              "id",
+              user.id
+            );
 
-        if (profileUpdateError) {
+        if (
+          profileUpdateError
+        ) {
           console.warn(
             "2FA verificado, pero no se pudo actualizar profiles:",
             profileUpdateError
@@ -799,29 +914,44 @@ export default function PerfilPage() {
         }
       }
 
-      setProfile((current) =>
-        current
-          ? {
-              ...current,
-              two_factor_enabled:
-                true,
-            }
-          : current
+      setProfile(
+        (current) =>
+          current
+            ? {
+                ...current,
+                two_factor_enabled:
+                  true,
+              }
+            : current
       );
 
-      setMfaFactor((current) =>
-        current
-          ? {
-              ...current,
-              status: "verified",
-            }
-          : current
+      setMfaFactor(
+        (current) =>
+          current
+            ? {
+                ...current,
+                status:
+                  "verified",
+              }
+            : current
       );
 
-      setShowMfaSetup(false);
-      setMfaQrCode(null);
-      setMfaSecret(null);
-      setMfaChallengeId(null);
+      setShowMfaSetup(
+        false
+      );
+
+      setMfaQrCode(
+        null
+      );
+
+      setMfaSecret(
+        null
+      );
+
+      setMfaChallengeId(
+        null
+      );
+
       setMfaCode("");
 
       setMessage(
@@ -863,16 +993,13 @@ export default function PerfilPage() {
         "¿Seguro que querés desactivar la verificación en dos pasos?"
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     setMfaLoading(true);
 
     try {
-      /*
-       * Para eliminar un factor verificado,
-       * Supabase exige una sesión con AAL2.
-       */
-
       const {
         data: assuranceData,
         error: assuranceError,
@@ -893,7 +1020,8 @@ export default function PerfilPage() {
       }
 
       const {
-        error: unenrollError,
+        error:
+          unenrollError,
       } =
         await supabase.auth.mfa.unenroll(
           {
@@ -908,7 +1036,8 @@ export default function PerfilPage() {
 
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } =
+        await supabase.auth.getUser();
 
       if (user) {
         await supabase
@@ -917,19 +1046,23 @@ export default function PerfilPage() {
             two_factor_enabled:
               false,
           })
-          .eq("id", user.id);
+          .eq(
+            "id",
+            user.id
+          );
       }
 
       setMfaFactor(null);
 
-      setProfile((current) =>
-        current
-          ? {
-              ...current,
-              two_factor_enabled:
-                false,
-            }
-          : current
+      setProfile(
+        (current) =>
+          current
+            ? {
+                ...current,
+                two_factor_enabled:
+                  false,
+              }
+            : current
       );
 
       setMessage(
@@ -957,7 +1090,8 @@ export default function PerfilPage() {
 
   async function logout() {
     await supabase.auth.signOut();
-    window.location.href = "/login";
+    window.location.href =
+      "/login";
   }
 
   // =========================
@@ -967,15 +1101,21 @@ export default function PerfilPage() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#080a0d] text-white">
+
         <div className="text-center">
-          <div className="mb-4 text-5xl">
-            🐜
+
+          <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#27d59b]/20 bg-[#27d59b]/10">
+
+            <span className="h-3 w-3 animate-pulse rounded-full bg-[#27d59b]" />
+
           </div>
 
           <p className="text-gray-400">
             Cargando tu perfil...
           </p>
+
         </div>
+
       </main>
     );
   }
@@ -985,66 +1125,16 @@ export default function PerfilPage() {
 
       {/* SIDEBAR */}
 
-      <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-white/10 bg-[#0b1016] p-5 lg:block">
-
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-3"
-        >
-          <Image
-            src="/logo-HormiGUITA.png"
-            alt="HormiGUITA"
-            width={46}
-            height={46}
-            className="object-contain"
-          />
-
-          <span className="text-xl font-black">
-            Hormi
-            <span className="text-[#27d59b]">
-              GUITA
-            </span>
-          </span>
-        </Link>
-
-        <nav className="mt-10 space-y-2">
-
-          <Link
-            href="/dashboard"
-            className="block rounded-xl px-4 py-3 text-gray-400 transition hover:bg-white/5 hover:text-white"
-          >
-            🏠 Inicio
-          </Link>
-
-          <Link
-            href="/dashboard/historial"
-            className="block rounded-xl px-4 py-3 text-gray-400 transition hover:bg-white/5 hover:text-white"
-          >
-            📋 Historial
-          </Link>
-
-          <div className="rounded-xl bg-[#27d59b]/10 px-4 py-3 font-semibold text-[#27d59b]">
-            ⚙️ Mi cuenta
-          </div>
-
-        </nav>
-
-        <div className="absolute bottom-5 left-5 right-5">
-
-          <button
-            onClick={logout}
-            className="w-full rounded-xl border border-gray-800 px-4 py-3 text-left text-gray-400 transition hover:bg-white/5 hover:text-white"
-          >
-            ↩ Cerrar sesión
-          </button>
-
-        </div>
-
-      </aside>
+      <Sidebar
+        active="perfil"
+        onLogout={logout}
+      />
 
       {/* CONTENIDO */}
 
       <section className="lg:ml-64">
+
+        {/* TOPBAR */}
 
         <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-white/10 bg-[#080a0d]/90 px-6 backdrop-blur-xl lg:px-10">
 
@@ -1132,14 +1222,17 @@ export default function PerfilPage() {
 
                   {avatarPreview ? (
                     <img
-                      src={avatarPreview}
+                      src={
+                        avatarPreview
+                      }
                       alt="Foto de perfil"
                       className="h-full w-full object-cover"
                     />
                   ) : (
                     (
-                      profile?.full_name?.charAt(0) ??
-                      "U"
+                      profile?.full_name?.charAt(
+                        0
+                      ) ?? "U"
                     ).toUpperCase()
                   )}
 
@@ -1169,10 +1262,15 @@ export default function PerfilPage() {
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
-                      onChange={handleAvatarChange}
-                      disabled={uploadingAvatar}
+                      onChange={
+                        handleAvatarChange
+                      }
+                      disabled={
+                        uploadingAvatar
+                      }
                       className="hidden"
                     />
+
                   </label>
 
                 </div>
@@ -1191,7 +1289,9 @@ export default function PerfilPage() {
                   type="text"
                   value={name}
                   onChange={(e) =>
-                    setName(e.target.value)
+                    setName(
+                      e.target.value
+                    )
                   }
                   className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none focus:border-[#27d59b]"
                 />
@@ -1214,15 +1314,16 @@ export default function PerfilPage() {
                 />
 
                 <p className="mt-2 text-xs text-gray-600">
-                  El cambio de correo lo agregaremos después
-                  mediante verificación de seguridad.
+                  El cambio de correo lo agregaremos después mediante verificación de seguridad.
                 </p>
 
               </div>
 
               <button
                 type="submit"
-                disabled={savingProfile}
+                disabled={
+                  savingProfile
+                }
                 className="rounded-xl bg-[#27d59b] px-6 py-3 font-extrabold text-[#032119] transition hover:brightness-110 disabled:opacity-50"
               >
                 {savingProfile
@@ -1253,7 +1354,9 @@ export default function PerfilPage() {
             {/* PASSWORD */}
 
             <form
-              onSubmit={changePassword}
+              onSubmit={
+                changePassword
+              }
               className="space-y-5"
             >
 
@@ -1265,7 +1368,9 @@ export default function PerfilPage() {
 
                 <input
                   type="password"
-                  value={newPassword}
+                  value={
+                    newPassword
+                  }
                   onChange={(e) =>
                     setNewPassword(
                       e.target.value
@@ -1285,7 +1390,9 @@ export default function PerfilPage() {
 
                 <input
                   type="password"
-                  value={confirmPassword}
+                  value={
+                    confirmPassword
+                  }
                   onChange={(e) =>
                     setConfirmPassword(
                       e.target.value
@@ -1299,7 +1406,9 @@ export default function PerfilPage() {
 
               <button
                 type="submit"
-                disabled={savingPassword}
+                disabled={
+                  savingPassword
+                }
                 className="rounded-xl border border-[#27d59b]/40 bg-[#27d59b]/10 px-6 py-3 font-bold text-[#27d59b] transition hover:bg-[#27d59b]/15 disabled:opacity-50"
               >
                 {savingPassword
@@ -1341,8 +1450,12 @@ export default function PerfilPage() {
 
                   <button
                     type="button"
-                    onClick={disableMfa}
-                    disabled={mfaLoading}
+                    onClick={
+                      disableMfa
+                    }
+                    disabled={
+                      mfaLoading
+                    }
                     className="rounded-xl border border-red-500/30 bg-red-500/10 px-5 py-3 font-bold text-red-300 transition hover:bg-red-500/15 disabled:opacity-50"
                   >
                     {mfaLoading
@@ -1354,8 +1467,12 @@ export default function PerfilPage() {
 
                   <button
                     type="button"
-                    onClick={startMfaSetup}
-                    disabled={mfaLoading}
+                    onClick={
+                      startMfaSetup
+                    }
+                    disabled={
+                      mfaLoading
+                    }
                     className="rounded-xl bg-[#27d59b] px-5 py-3 font-bold text-[#032119] transition hover:brightness-110 disabled:opacity-50"
                   >
                     {mfaLoading
@@ -1447,7 +1564,9 @@ export default function PerfilPage() {
                         inputMode="numeric"
                         autoComplete="one-time-code"
                         maxLength={6}
-                        value={mfaCode}
+                        value={
+                          mfaCode
+                        }
                         onChange={(e) =>
                           setMfaCode(
                             e.target.value
@@ -1455,7 +1574,10 @@ export default function PerfilPage() {
                                 /\D/g,
                                 ""
                               )
-                              .slice(0, 6)
+                              .slice(
+                                0,
+                                6
+                              )
                           )
                         }
                         placeholder="123456"
@@ -1464,10 +1586,13 @@ export default function PerfilPage() {
 
                       <button
                         type="button"
-                        onClick={verifyMfa}
+                        onClick={
+                          verifyMfa
+                        }
                         disabled={
                           mfaLoading ||
-                          mfaCode.length !== 6
+                          mfaCode.length !==
+                            6
                         }
                         className="mt-4 rounded-xl bg-[#27d59b] px-5 py-3 font-extrabold text-[#032119] transition hover:brightness-110 disabled:opacity-50"
                       >
@@ -1479,13 +1604,23 @@ export default function PerfilPage() {
                       <button
                         type="button"
                         onClick={() => {
-                          setShowMfaSetup(false);
-                          setMfaQrCode(null);
-                          setMfaSecret(null);
-                          setMfaChallengeId(null);
+                          setShowMfaSetup(
+                            false
+                          );
+                          setMfaQrCode(
+                            null
+                          );
+                          setMfaSecret(
+                            null
+                          );
+                          setMfaChallengeId(
+                            null
+                          );
                           setMfaCode("");
                         }}
-                        disabled={mfaLoading}
+                        disabled={
+                          mfaLoading
+                        }
                         className="mt-3 rounded-xl border border-gray-700 px-5 py-3 font-semibold text-gray-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
                       >
                         Cancelar
@@ -1519,10 +1654,32 @@ export default function PerfilPage() {
             </div>
 
             <button
-              onClick={logout}
-              className="rounded-xl border border-red-500/20 bg-red-500/5 px-5 py-3 font-bold text-red-400 transition hover:bg-red-500/10"
+              onClick={
+                logout
+              }
+              className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-5 py-3 font-bold text-red-400 transition hover:bg-red-500/10"
             >
-              ↩ Cerrar sesión
+
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M10 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4" />
+                <path d="m14 8 4 4-4 4" />
+                <path d="M18 12H9" />
+              </svg>
+
+              <span>
+                Cerrar sesión
+              </span>
+
             </button>
 
           </section>

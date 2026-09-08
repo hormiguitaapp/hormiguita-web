@@ -75,7 +75,7 @@ export default function Home() {
 
             <a
               href="#pro"
-              className="text-sm font-bold text-purple-300 transition hover:text-purple-200"
+              className="text-sm font-bold text-[#27d59b] transition hover:text-[#68e8bc]"
             >
               Pro
             </a>
@@ -97,10 +97,37 @@ export default function Home() {
 
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-[#11161d] text-xl text-gray-300 transition hover:bg-[#171d25] md:hidden"
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-800 bg-[#11161d] text-gray-300 transition hover:bg-[#171d25] md:hidden"
               aria-label="Abrir menú"
             >
-              {menuOpen ? "✕" : "☰"}
+              {menuOpen ? (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M6 6L18 18" />
+                  <path d="M18 6L6 18" />
+                </svg>
+              ) : (
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <path d="M4 7H20" />
+                  <path d="M4 12H20" />
+                  <path d="M4 17H20" />
+                </svg>
+              )}
             </button>
 
           </div>
@@ -124,7 +151,19 @@ export default function Home() {
                 className="flex items-center justify-between border-b border-white/5 py-5 text-base font-semibold text-gray-300 transition hover:text-white"
               >
                 <span>Conocé HormiGUITA</span>
-                <span className="text-gray-500">⌄</span>
+
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M6 9L12 15L18 9" />
+                </svg>
               </a>
 
               {/* INICIO */}
@@ -162,7 +201,7 @@ export default function Home() {
               <a
                 href="#pro"
                 onClick={() => setMenuOpen(false)}
-                className="border-b border-white/5 py-5 text-base font-bold text-purple-300 transition hover:text-purple-200"
+                className="border-b border-white/5 py-5 text-base font-bold text-[#27d59b] transition hover:text-[#68e8bc]"
               >
                 Pro
               </a>
@@ -184,7 +223,7 @@ export default function Home() {
                 onClick={() => setMenuOpen(false)}
                 className="my-5 rounded-xl bg-gradient-to-r from-[#27d59b] to-[#16b78a] px-6 py-4 text-center font-extrabold text-[#032119] shadow-lg shadow-[#16b78a]/20 transition hover:brightness-110"
               >
-                Empezar ahora 🐜
+                Empezar ahora
               </Link>
 
             </div>
@@ -242,7 +281,7 @@ export default function Home() {
                 href="/registro"
                 className="rounded-xl bg-gradient-to-r from-[#27d59b] to-[#16b78a] px-7 py-4 text-center font-extrabold text-[#032119] shadow-lg shadow-[#16b78a]/20 transition hover:scale-[1.01] hover:brightness-110"
               >
-                Empezar ahora 🐜
+                Empezar ahora
               </Link>
 
               <a
@@ -260,7 +299,7 @@ export default function Home() {
 
               <div>
                 <div className="font-bold">
-                  🎙️ Audio
+                  Audio
                 </div>
 
                 <div className="mt-1 text-sm text-gray-500">
@@ -270,7 +309,7 @@ export default function Home() {
 
               <div>
                 <div className="font-bold">
-                  📊 Control
+                  Control
                 </div>
 
                 <div className="mt-1 text-sm text-gray-500">
@@ -280,7 +319,7 @@ export default function Home() {
 
               <div>
                 <div className="font-bold">
-                  🔒 Seguridad
+                  Seguridad
                 </div>
 
                 <div className="mt-1 text-sm text-gray-500">
@@ -311,7 +350,7 @@ export default function Home() {
               </div>
 
               <span className="text-sm text-[#27d59b]">
-                ● En orden
+                En orden
               </span>
 
             </div>
@@ -352,7 +391,7 @@ export default function Home() {
 
               <div className="flex justify-between border-b border-white/5 py-4 text-sm">
                 <span>
-                  🎙️ Gasté $12.000 en comida
+                  Gasté $12.000 en comida
                 </span>
 
                 <strong className="text-red-400">
@@ -362,7 +401,7 @@ export default function Home() {
 
               <div className="flex justify-between border-b border-white/5 py-4 text-sm">
                 <span>
-                  💬 Cobré un trabajo
+                  Cobré un trabajo
                 </span>
 
                 <strong className="text-[#27d59b]">
@@ -372,7 +411,7 @@ export default function Home() {
 
               <div className="flex justify-between py-4 text-sm">
                 <span>
-                  🎙️ Pagué internet
+                  Pagué internet
                 </span>
 
                 <strong className="text-red-400">
@@ -420,19 +459,16 @@ export default function Home() {
           <div className="mt-12 grid gap-5 md:grid-cols-3">
 
             <Feature
-              icon="💸"
               title="Ingresos y Egresos"
               text="Registrá todo lo que entra y sale."
             />
 
             <Feature
-              icon="📋"
               title="Historial completo"
               text="Sabé cuándo y cómo registraste cada movimiento."
             />
 
             <Feature
-              icon="🐜"
               title="Pequeños pasos"
               text="Pequeños movimientos construyen grandes resultados."
             />
@@ -532,19 +568,16 @@ export default function Home() {
           <div className="mt-12 grid gap-5 md:grid-cols-3">
 
             <Feature
-              icon="👤"
               title="Perfil"
               text="Modificá nombre, correo y foto de perfil."
             />
 
             <Feature
-              icon="🔐"
               title="Seguridad"
               text="Contraseña, sesiones y verificación en dos pasos."
             />
 
             <Feature
-              icon="🛡️"
               title="Privacidad"
               text="Tu información financiera queda aislada de otros usuarios."
             />
@@ -561,13 +594,13 @@ export default function Home() {
 
       <section
         id="pro"
-        className="border-y border-purple-500/10 bg-gradient-to-br from-[#110d18] to-[#170d21] px-6 py-24 lg:px-10"
+        className="border-y border-[#27d59b]/10 bg-gradient-to-br from-[#0d1715] to-[#0c1210] px-6 py-24 lg:px-10"
       >
 
         <div className="mx-auto max-w-7xl text-center">
 
-          <div className="inline-flex rounded-full border border-purple-500/30 bg-purple-500/10 px-4 py-2 text-sm font-bold text-purple-300">
-            ✦ HORMIGUITA PRO
+          <div className="inline-flex rounded-full border border-[#27d59b]/30 bg-[#27d59b]/10 px-4 py-2 text-sm font-bold text-[#27d59b]">
+            HORMIGUITA PRO
           </div>
 
           <h2 className="mt-6 text-4xl font-black tracking-tight sm:text-5xl">
@@ -582,19 +615,16 @@ export default function Home() {
           <div className="mt-12 grid gap-5 md:grid-cols-3">
 
             <ProCard
-              icon="🤖"
               title="IA financiera"
               text="Interpretación inteligente de audios y mensajes."
             />
 
             <ProCard
-              icon="📈"
               title="Reportes avanzados"
               text="Analizá hábitos, categorías y evolución financiera."
             />
 
             <ProCard
-              icon="🎯"
               title="Metas y alertas"
               text="Creá objetivos, presupuestos y avisos."
             />
@@ -614,7 +644,7 @@ export default function Home() {
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 text-sm text-gray-500 sm:flex-row">
 
           <div>
-            🐜 Hormi
+            Hormi
             <span className="text-[#27d59b]">
               GUITA
             </span>
@@ -637,22 +667,16 @@ export default function Home() {
 ========================= */
 
 function Feature({
-  icon,
   title,
   text,
 }: {
-  icon: string;
   title: string;
   text: string;
 }) {
   return (
     <div className="rounded-2xl border border-gray-800 bg-[#111720] p-6 transition hover:-translate-y-1 hover:border-[#27d59b]/30">
 
-      <div className="text-3xl">
-        {icon}
-      </div>
-
-      <h3 className="mt-5 text-xl font-bold">
+      <h3 className="text-xl font-bold">
         {title}
       </h3>
 
@@ -707,22 +731,16 @@ function DashboardCard({
 ========================= */
 
 function ProCard({
-  icon,
   title,
   text,
 }: {
-  icon: string;
   title: string;
   text: string;
 }) {
   return (
-    <div className="rounded-2xl border border-purple-500/10 bg-[#14101c] p-7 text-left transition hover:-translate-y-1 hover:border-purple-500/30">
+    <div className="rounded-2xl border border-[#27d59b]/10 bg-[#101815] p-7 text-left transition hover:-translate-y-1 hover:border-[#27d59b]/30">
 
-      <div className="text-3xl">
-        {icon}
-      </div>
-
-      <h3 className="mt-5 text-xl font-bold">
+      <h3 className="text-xl font-bold">
         {title}
       </h3>
 
