@@ -15,6 +15,8 @@ type Transaction = {
   description: string | null;
   source: "manual" | "whatsapp_text" | "whatsapp_audio";
   transaction_date: string;
+  goal_id: string | null;
+  is_goal_contribution: boolean;
 };
 
 type Category = {
@@ -29,6 +31,23 @@ type Profile = {
   full_name: string | null;
   email: string | null;
   avatar_url: string | null;
+};
+
+type ExchangeRate = {
+  currency: "USD";
+  type: "official_sell";
+  rate: number;
+  source: string;
+  sourceName: string;
+  updatedAt: string;
+};
+
+
+type Goal = {
+  id: string;
+  name: string;
+  current_amount_ars: number;
+  currency: "ARS" | "USD";
 };
 
 const DEFAULT_CATEGORIES = [
@@ -280,6 +299,15 @@ export default function DashboardPage() {
   const [avatarDisplayUrl, setAvatarDisplayUrl] =
     useState<string | null>(null);
 
+  const [exchangeRate, setExchangeRate] =
+    useState<ExchangeRate | null>(null);
+
+  const [goals, setGoals] =
+    useState<Goal[]>([]);
+
+  const [goalId, setGoalId] =
+    useState("");
+
   const [loading, setLoading] =
     useState(true);
 
@@ -293,7 +321,7 @@ export default function DashboardPage() {
     useState(false);
 
   const [type, setType] =
-    useState<"income" | "expense">(
+    useState<"income" | "expense" | "saving">(
       "expense"
     );
 
@@ -321,7 +349,73 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboard();
+    loadGoals();
+    loadExchangeRate();
+
+    const interval = window.setInterval(() => {
+      loadExchangeRate();
+    }, 60 * 60 * 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
   }, []);
+
+  async function loadGoals() {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        return;
+      }
+
+      const {
+        data,
+        error: goalsError,
+      } = await supabase
+        .from("goals")
+        .select("id, name, current_amount_ars, currency")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (goalsError) {
+        console.error("Error cargando objetivos:", goalsError);
+        return;
+      }
+
+      setGoals(data ?? []);
+    } catch (error) {
+      console.error("Error cargando objetivos:", error);
+    }
+  }
+
+  async function loadExchangeRate() {
+    try {
+      const response = await fetch("/api/exchange-rate", {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("No se pudo obtener la cotización.");
+      }
+
+      const data = (await response.json()) as ExchangeRate;
+
+      if (
+        data.currency !== "USD" ||
+        data.type !== "official_sell" ||
+        typeof data.rate !== "number"
+      ) {
+        throw new Error("Cotización inválida.");
+      }
+
+      setExchangeRate(data);
+    } catch (error) {
+      console.error("Error obteniendo cotización:", error);
+    }
+  }
 
   async function loadDashboard() {
     setLoading(true);
@@ -418,7 +512,7 @@ export default function DashboardPage() {
       } = await supabase
         .from("transactions")
         .select(
-          "id, user_id, category_id, type, amount, description, source, transaction_date"
+          "id, user_id, category_id, type, amount, description, source, transaction_date, goal_id, is_goal_contribution"
         )
         .eq("user_id", user.id)
         .order("transaction_date", {
@@ -539,7 +633,8 @@ export default function DashboardPage() {
       .filter(
         (transaction) =>
           transaction.type ===
-          "income"
+          "income" &&
+          transaction.is_goal_contribution !== true
       )
       .reduce(
         (total, transaction) =>
@@ -562,8 +657,20 @@ export default function DashboardPage() {
         0
       );
 
+  const totalGoalContributions =
+    transactions
+      .filter(
+        (transaction) =>
+          transaction.is_goal_contribution === true
+      )
+      .reduce(
+        (total, transaction) =>
+          total + Number(transaction.amount),
+        0
+      );
+
   const balance =
-    totalIncome - totalExpense;
+    totalIncome - totalExpense - totalGoalContributions;
 
   /*
    * GASTOS POR CATEGORÍA
@@ -693,6 +800,7 @@ export default function DashboardPage() {
     setAmount("");
     setCategoryId("");
     setSource("manual");
+    setGoalId("");
 
     setDate(
       new Date()
@@ -712,29 +820,24 @@ export default function DashboardPage() {
     setError("");
 
     if (!description.trim()) {
-      setError(
-        "Ingresá una descripción."
-      );
+      setError("Ingresá una descripción.");
       return;
     }
 
-    const numericAmount =
-      Number(amount);
+    const numericAmount = Number(amount);
 
-    if (
-      !numericAmount ||
-      numericAmount <= 0
-    ) {
-      setError(
-        "Ingresá un monto válido."
-      );
+    if (!numericAmount || numericAmount <= 0) {
+      setError("Ingresá un monto válido.");
       return;
     }
 
-    if (!categoryId) {
-      setError(
-        "Seleccioná una categoría."
-      );
+    if (type === "saving") {
+      if (!goalId) {
+        setError("Seleccioná un objetivo.");
+        return;
+      }
+    } else if (!categoryId) {
+      setError("Seleccioná una categoría.");
       return;
     }
 
@@ -743,47 +846,115 @@ export default function DashboardPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setError(
-        "La sesión expiró. Volvé a iniciar sesión."
-      );
-
+      setError("La sesión expiró. Volvé a iniciar sesión.");
       return;
     }
 
     setSaving(true);
 
-    const {
-      error: insertError,
-    } = await supabase
-      .from("transactions")
-      .insert({
-        user_id: user.id,
-        category_id: categoryId,
-        type,
-        amount: numericAmount,
-        description:
-          description.trim(),
-        source,
-        transaction_date: date,
-      });
-
-    if (insertError) {
-      console.error(
-        insertError
+    if (type === "saving") {
+      const selectedGoal = goals.find(
+        (goal) => goal.id === goalId
       );
 
-      setError(
-        `No se pudo guardar el movimiento: ${insertError.message}`
-      );
+      if (!selectedGoal) {
+        setError("El objetivo seleccionado no está disponible.");
+        setSaving(false);
+        return;
+      }
 
-      setSaving(false);
-      return;
+      const currentGoalARS =
+        Number(selectedGoal.current_amount_ars) || 0;
+
+      const {
+        error: goalError,
+      } = await supabase
+        .from("goals")
+        .update({
+          current_amount_ars: currentGoalARS + numericAmount,
+          current_amount: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", selectedGoal.id)
+        .eq("user_id", user.id);
+
+      if (goalError) {
+        console.error("Error actualizando objetivo:", goalError);
+        setError("No se pudo actualizar el objetivo.");
+        setSaving(false);
+        return;
+      }
+
+      const {
+        error: insertError,
+      } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: user.id,
+          category_id: null,
+          type: "income",
+          amount: numericAmount,
+          description: description.trim(),
+          source,
+          transaction_date: date,
+          goal_id: selectedGoal.id,
+          is_goal_contribution: true,
+        });
+
+      if (insertError) {
+        console.error("Error guardando aporte:", insertError);
+
+        await supabase
+          .from("goals")
+          .update({
+            current_amount_ars: currentGoalARS,
+            current_amount: 0,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", selectedGoal.id)
+          .eq("user_id", user.id);
+
+        setError(
+          `No se pudo guardar el aporte: ${insertError.message}`
+        );
+
+        setSaving(false);
+        return;
+      }
+    } else {
+      const {
+        error: insertError,
+      } = await supabase
+        .from("transactions")
+        .insert({
+          user_id: user.id,
+          category_id: categoryId,
+          type,
+          amount: numericAmount,
+          description: description.trim(),
+          source,
+          transaction_date: date,
+        });
+
+      if (insertError) {
+        console.error(insertError);
+
+        setError(
+          `No se pudo guardar el movimiento: ${insertError.message}`
+        );
+
+        setSaving(false);
+        return;
+      }
     }
 
     setSaving(false);
     setShowModal(false);
 
-    await loadDashboard();
+    await Promise.all([
+      loadDashboard(),
+      loadGoals(),
+    ]);
   }
 
   /*
@@ -848,7 +1019,26 @@ export default function DashboardPage() {
 
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-5">
+
+            {exchangeRate && (
+              <div
+                className="hidden sm:flex items-center gap-2 rounded-xl border border-[#27d59b]/10 bg-[#27d59b]/5 px-3 py-2"
+                title="Dólar oficial · venta"
+              >
+                <span className="h-2 w-2 rounded-full bg-[#27d59b]" />
+                <div className="leading-none">
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                    Valor actual del USD
+                  </div>
+                  <div className="mt-1 text-sm font-bold text-[#27d59b]">
+                    {money(exchangeRate.rate)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-3">
 
             <Link
               href="/perfil"
@@ -884,6 +1074,8 @@ export default function DashboardPage() {
               </div>
 
             </Link>
+
+            </div>
 
           </div>
 
@@ -1229,18 +1421,30 @@ export default function DashboardPage() {
 
                           <div>
 
-                            <div className="text-sm font-semibold">
-                              {
-                                transaction.description ||
-                                "Sin descripción"
-                              }
+                            <div className="flex items-center gap-2 text-sm font-semibold">
+                              {transaction.is_goal_contribution && (
+                                <span
+                                  className="text-[#f5c451]"
+                                  title="Aporte a un objetivo"
+                                  aria-label="Aporte a un objetivo"
+                                >
+                                  ★
+                                </span>
+                              )}
+
+                              <span>
+                                {transaction.description ||
+                                  "Sin descripción"}
+                              </span>
                             </div>
 
                             <div className="mt-1 text-xs text-gray-500">
 
-                              {getCategoryName(
-                                transaction.category_id
-                              )}
+                              {transaction.is_goal_contribution
+                                ? "Objetivo"
+                                : getCategoryName(
+                                    transaction.category_id
+                                  )}
 
                               {" · "}
 
@@ -1370,15 +1574,14 @@ export default function DashboardPage() {
                     const newType =
                       e.target.value as
                         | "income"
-                        | "expense";
+                        | "expense"
+                        | "saving";
 
-                    setType(
-                      newType
-                    );
-
-                    setCategoryId(
-                      ""
-                    );
+                    setType(newType);
+                    setCategoryId("");
+                    if (newType !== "saving") {
+                      setGoalId("");
+                    }
                   }}
                   className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none"
                 >
@@ -1391,9 +1594,53 @@ export default function DashboardPage() {
                     Ingreso
                   </option>
 
+                  <option value="saving">
+                    Ahorro / Objetivo
+                  </option>
+
                 </select>
 
               </div>
+
+              {/* OBJETIVO */}
+
+              {type === "saving" && (
+                <div className="rounded-2xl border border-[#27d59b]/20 bg-[#27d59b]/5 p-4">
+
+                  <label className="mb-2 block text-sm font-semibold text-gray-200">
+                    Objetivo
+                  </label>
+
+                  <select
+                    value={goalId}
+                    onChange={(e) =>
+                      setGoalId(e.target.value)
+                    }
+                    className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none focus:border-[#27d59b]"
+                  >
+                    <option value="">
+                      Seleccioná un objetivo
+                    </option>
+
+                    {goals.map((goal) => (
+                      <option key={goal.id} value={goal.id}>
+                        {goal.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {goals.length === 0 && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Primero creá un objetivo en la sección Objetivos.
+                    </p>
+                  )}
+
+                  <p className="mt-2 text-xs text-gray-500">
+                    Este aporte se sumará al objetivo y se destacará como ahorro.
+                  </p>
+
+                </div>
+              )}
 
               {/* DESCRIPCIÓN */}
 
@@ -1444,6 +1691,7 @@ export default function DashboardPage() {
 
               {/* CATEGORÍA */}
 
+              {type !== "saving" && (
               <div>
 
                 <label className="mb-2 block text-sm text-gray-300">
@@ -1493,6 +1741,7 @@ export default function DashboardPage() {
                   )}
 
               </div>
+              )}
 
               {/* ORIGEN */}
 
