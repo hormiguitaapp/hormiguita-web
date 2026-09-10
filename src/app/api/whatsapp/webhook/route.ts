@@ -436,6 +436,14 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
     return;
   }
 
+  if (!text) {
+    await sendWhatsAppText(
+      message.from,
+      "No pude obtener el contenido del mensaje. Probá enviándolo nuevamente."
+    );
+    return;
+  }
+
   console.log(
     "WhatsApp texto interpretado:",
     text
