@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
+const WABA_ID = "1045873878442549";
+
 export async function GET(request: NextRequest) {
   try {
     const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
-    const graphVersion =
-      process.env.WHATSAPP_GRAPH_API_VERSION || "v26.0";
     const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
     if (!accessToken || !verifyToken) {
@@ -33,12 +33,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const wabaId = "1045873878442549";
+    const graphVersion =
+      process.env.WHATSAPP_GRAPH_API_VERSION || "v26.0";
 
     const response = await fetch(
-      `https://graph.facebook.com/${graphVersion}/${wabaId}/subscribed_apps`,
+      `https://graph.facebook.com/${graphVersion}/${WABA_ID}/subscribed_apps`,
       {
-        method: "GET",
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -46,45 +46,23 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    const responseText = await response.text();
+    const text = await response.text();
 
     let data: unknown;
 
     try {
-      data = JSON.parse(responseText);
+      data = JSON.parse(text);
     } catch {
-      data = {
-        raw: responseText,
-      };
-    }
-
-    console.log(
-      "Resultado suscripción WABA:",
-      data
-    );
-
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          metaStatus: response.status,
-          metaResponse: data,
-        },
-        { status: 502 }
-      );
+      data = { raw: text };
     }
 
     return NextResponse.json({
-      ok: true,
-      wabaId,
-      metaResponse: data,
+      ok: response.ok,
+      status: response.status,
+      wabaId: WABA_ID,
+      response: data,
     });
   } catch (error) {
-    console.error(
-      "Error comprobando suscripción WABA:",
-      error
-    );
-
     return NextResponse.json(
       {
         ok: false,
