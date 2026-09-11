@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const WABA_ID = "1045873878442549";
+const WABA_ID = process.env.WHATSAPP_WABA_ID;
 
 export async function GET(request: NextRequest) {
   try {
