@@ -155,6 +155,17 @@ function looksLikeGoalSaving(text: string) {
   );
 }
 
+function extractLinkCode(text: string | null) {
+  if (!text) return null;
+
+  const match = text
+    .trim()
+    .toUpperCase()
+    .match(/^HORMI-(\d{6})$/);
+
+  return match ? `HORMI-${match[1]}` : null;
+}
+
 function extractWhatsAppMessage(body: any) {
   const message =
     body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -195,6 +206,7 @@ async function transcribeWhatsAppAudio(audioId: string) {
 
   if (!mediaResponse.ok) {
     const errorText = await mediaResponse.text();
+
     throw new Error(
       `No se pudo obtener el archivo de audio de WhatsApp: ${errorText}`
     );
@@ -206,7 +218,9 @@ async function transcribeWhatsAppAudio(audioId: string) {
   };
 
   if (!media.url) {
-    throw new Error("WhatsApp no devolvió una URL para el audio.");
+    throw new Error(
+      "WhatsApp no devolvió una URL para el audio."
+    );
   }
 
   const audioResponse = await fetch(media.url, {
@@ -218,6 +232,7 @@ async function transcribeWhatsAppAudio(audioId: string) {
 
   if (!audioResponse.ok) {
     const errorText = await audioResponse.text();
+
     throw new Error(
       `No se pudo descargar el audio de WhatsApp: ${errorText}`
     );
@@ -227,13 +242,16 @@ async function transcribeWhatsAppAudio(audioId: string) {
   const mimeType = media.mime_type || "audio/ogg";
 
   const form = new FormData();
+
   form.append(
     "file",
     new Blob([audioBuffer], { type: mimeType }),
     "whatsapp-audio.ogg"
   );
+
   form.append("model", "gpt-4o-mini-transcribe");
   form.append("language", "es");
+
   form.append(
     "prompt",
     "Audio en español argentino sobre finanzas personales, gastos, ingresos, ahorros y objetivos."
@@ -251,20 +269,25 @@ async function transcribeWhatsAppAudio(audioId: string) {
   );
 
   if (!transcriptionResponse.ok) {
-    const errorText = await transcriptionResponse.text();
+    const errorText =
+      await transcriptionResponse.text();
+
     throw new Error(
       `No se pudo transcribir el audio: ${errorText}`
     );
   }
 
-  const transcription = (await transcriptionResponse.json()) as {
-    text?: string;
-  };
+  const transcription =
+    (await transcriptionResponse.json()) as {
+      text?: string;
+    };
 
   const text = transcription.text?.trim();
 
   if (!text) {
-    throw new Error("La transcripción llegó vacía.");
+    throw new Error(
+      "La transcripción llegó vacía."
+    );
   }
 
   return text;
@@ -288,12 +311,99 @@ async function findConnectedUserId(phone: string) {
   return data?.user_id ?? null;
 }
 
+async function linkWhatsAppWithCode(
+  phone: string,
+  code: string
+) {
+  const supabase = getAdminClient();
+
+  const { data: linkCode, error: linkCodeError } =
+    await supabase
+      .from("whatsapp_link_codes")
+      .select("id, user_id, expires_at, used_at")
+      .eq("code", code)
+      .maybeSingle();
+
+  if (linkCodeError) {
+    throw new Error(
+      `Error buscando código de vinculación: ${linkCodeError.message}`
+    );
+  }
+
+  if (!linkCode) {
+    return {
+      success: false,
+      message:
+        "Ese código de vinculación no existe o no es válido.",
+    };
+  }
+
+  if (linkCode.used_at) {
+    return {
+      success: false,
+      message:
+        "Ese código de vinculación ya fue utilizado.",
+    };
+  }
+
+  if (
+    new Date(linkCode.expires_at).getTime() < Date.now()
+  ) {
+    return {
+      success: false,
+      message:
+        "Ese código de vinculación venció. Generá uno nuevo desde HormiGUITA.",
+    };
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+
+  const { error: connectionError } = await supabase
+    .from("whatsapp_connections")
+    .upsert(
+      {
+        user_id: linkCode.user_id,
+        phone_number: normalizedPhone,
+      },
+      {
+        onConflict: "phone_number",
+      }
+    );
+
+  if (connectionError) {
+    throw new Error(
+      `Error vinculando WhatsApp: ${connectionError.message}`
+    );
+  }
+
+  const { error: usedError } = await supabase
+    .from("whatsapp_link_codes")
+    .update({
+      used_at: new Date().toISOString(),
+    })
+    .eq("id", linkCode.id)
+    .is("used_at", null);
+
+  if (usedError) {
+    throw new Error(
+      `Error marcando código como utilizado: ${usedError.message}`
+    );
+  }
+
+  return {
+    success: true,
+    userId: linkCode.user_id,
+  };
+}
+
 async function getGoals(userId: string) {
   const supabase = getAdminClient();
 
   const { data, error } = await supabase
     .from("goals")
-    .select("id, name, currency, current_amount_ars, target_amount")
+    .select(
+      "id, name, currency, current_amount_ars, target_amount"
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -306,10 +416,9 @@ async function getGoals(userId: string) {
   return data ?? [];
 }
 
-function findGoalByPhrase<T extends { id: string; name: string }>(
-  goals: T[],
-  phrase: string
-) {
+function findGoalByPhrase<
+  T extends { id: string; name: string }
+>(goals: T[], phrase: string) {
   const target = normalizeText(phrase);
 
   if (!target) {
@@ -326,6 +435,7 @@ function findGoalByPhrase<T extends { id: string; name: string }>(
 
   const contained = goals.find((goal) => {
     const goalName = normalizeText(goal.name);
+
     return (
       goalName.includes(target) ||
       target.includes(goalName)
@@ -367,10 +477,17 @@ async function applyContribution(params: {
   return data;
 }
 
-async function sendWhatsAppText(to: string, text: string) {
+async function sendWhatsAppText(
+  to: string,
+  text: string
+) {
   const accessToken = getEnv("WHATSAPP_ACCESS_TOKEN");
-  const phoneNumberId = getEnv("WHATSAPP_PHONE_NUMBER_ID");
-  const graphVersion = getEnv("WHATSAPP_GRAPH_API_VERSION");
+  const phoneNumberId = getEnv(
+    "WHATSAPP_PHONE_NUMBER_ID"
+  );
+  const graphVersion = getEnv(
+    "WHATSAPP_GRAPH_API_VERSION"
+  );
 
   const response = await fetch(
     `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
@@ -393,24 +510,73 @@ async function sendWhatsAppText(to: string, text: string) {
 
   if (!response.ok) {
     const errorText = await response.text();
+
     throw new Error(
       `No se pudo responder por WhatsApp: ${errorText}`
     );
   }
 }
 
-async function processIncomingMessage(message: ReturnType<typeof extractWhatsAppMessage>) {
+async function processIncomingMessage(
+  message: ReturnType<typeof extractWhatsAppMessage>
+) {
   if (!message?.id || !message.from) {
     return;
   }
 
-  const userId = await findConnectedUserId(message.from);
+  let userId = await findConnectedUserId(
+    message.from
+  );
+
+  // Si el número todavía no está vinculado,
+  // comprobamos si el usuario envió un código.
+  if (
+    !userId &&
+    message.type === "text" &&
+    message.text
+  ) {
+    const linkCode = extractLinkCode(message.text);
+
+    if (linkCode) {
+      const result = await linkWhatsAppWithCode(
+        message.from,
+        linkCode
+      );
+
+      if (!result.success) {
+        await sendWhatsAppText(
+          message.from,
+          result.message
+        );
+
+        return;
+      }
+
+      await sendWhatsAppText(
+        message.from,
+        "¡Listo! 🐜🎉 Tu WhatsApp quedó conectado correctamente con tu cuenta de HormiGUITA. Ya podés enviarme tus movimientos y ahorros por acá."
+      );
+
+      console.log(
+        "WhatsApp vinculado correctamente:",
+        message.from
+      );
+
+      return;
+    }
+  }
 
   if (!userId) {
     console.warn(
       "WhatsApp no conectado a ningún usuario:",
       message.from
     );
+
+    await sendWhatsAppText(
+      message.from,
+      "Tu WhatsApp todavía no está conectado a una cuenta de HormiGUITA. Entrá a tu perfil en la app, generá un código de vinculación y enviámelo por acá."
+    );
+
     return;
   }
 
@@ -427,12 +593,14 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
     text = await transcribeWhatsAppAudio(
       message.audioId
     );
+
     source = "whatsapp_audio";
   } else {
     await sendWhatsAppText(
       message.from,
       "Por ahora puedo procesar mensajes de texto y audios sobre tus finanzas."
     );
+
     return;
   }
 
@@ -441,6 +609,7 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
       message.from,
       "No pude obtener el contenido del mensaje. Probá enviándolo nuevamente."
     );
+
     return;
   }
 
@@ -454,6 +623,7 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
       message.from,
       "Entendí el mensaje, pero para cargar un ahorro necesito algo como: “Me separé 200 lucas para el auto”."
     );
+
     return;
   }
 
@@ -465,10 +635,12 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
       message.from,
       "Me faltó identificar el monto o el objetivo. Probá con: “Me separé 200 lucas para el auto”."
     );
+
     return;
   }
 
   const goals = await getGoals(userId);
+
   const goal = findGoalByPhrase(
     goals,
     goalPhrase
@@ -488,6 +660,7 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
       message.from,
       `No encontré un objetivo llamado “${goalPhrase}”. Decime el nombre exacto del objetivo.${suffix}`
     );
+
     return;
   }
 
@@ -502,8 +675,7 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
 
   const updatedAmountARS = Number(
     updatedGoal?.current_amount_ars ??
-      Number(goal.current_amount_ars ?? 0) +
-        amount
+      Number(goal.current_amount_ars ?? 0) + amount
   );
 
   await sendWhatsAppText(
@@ -512,7 +684,9 @@ async function processIncomingMessage(message: ReturnType<typeof extractWhatsApp
       style: "currency",
       currency: "ARS",
       maximumFractionDigits: 0,
-    }).format(amount)} a tu objetivo “${goal.name}”.\n\nAhorro acumulado: ${new Intl.NumberFormat("es-AR", {
+    }).format(amount)} a tu objetivo “${goal.name}”.
+
+Ahorro acumulado: ${new Intl.NumberFormat("es-AR", {
       style: "currency",
       currency: "ARS",
       maximumFractionDigits: 0,
@@ -526,24 +700,23 @@ export async function GET(request: NextRequest) {
 
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
-  const challenge = searchParams.get("hub.challenge");
+  const challenge =
+    searchParams.get("hub.challenge");
 
-  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+  const verifyToken =
+    process.env.WHATSAPP_VERIFY_TOKEN;
 
   if (
     mode === "subscribe" &&
     token === verifyToken &&
     challenge
   ) {
-    return new NextResponse(
-      challenge,
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "text/plain",
-        },
-      }
-    );
+    return new NextResponse(challenge, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain",
+      },
+    });
   }
 
   return NextResponse.json(
@@ -567,9 +740,7 @@ export async function POST(request: NextRequest) {
       extractWhatsAppMessage(body);
 
     if (message) {
-      await processIncomingMessage(
-        message
-      );
+      await processIncomingMessage(message);
     }
 
     return NextResponse.json(
