@@ -1677,7 +1677,7 @@ export default function PerfilPage() {
 
           {/* WHATSAPP */}
 
-          <section className="mt-5 overflow-hidden rounded-3xl border border-gray-800 bg-[#111720] p-6 lg:p-8">
+          <section className="mt-5 overflow-hidden rounded-3xl border border-gray-800 bg-[#111720] p-5 sm:p-6 lg:p-8">
 
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
 
@@ -1689,7 +1689,7 @@ export default function PerfilPage() {
 
                 <div>
 
-                  <h3 className="text-xl font-bold">
+                  <h3 className="text-xl font-bold text-white">
                     {whatsappPhone
                       ? "WhatsApp conectado"
                       : "Conectá WhatsApp"}
@@ -1698,7 +1698,7 @@ export default function PerfilPage() {
                   <p className="mt-1 max-w-2xl text-sm leading-6 text-gray-500">
                     {whatsappPhone
                       ? "Tu WhatsApp está vinculado correctamente a esta cuenta de HormiGUITA."
-                      : "Vinculá tu WhatsApp para registrar y consultar información directamente desde tus mensajes."}
+                      : "Vinculá tu WhatsApp para registrar movimientos y consultar información directamente desde tus mensajes."}
                   </p>
 
                 </div>
@@ -1724,11 +1724,11 @@ export default function PerfilPage() {
 
             {whatsappPhone ? (
 
-              <div className="mt-7 grid gap-5 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div className="mt-7 rounded-2xl border border-[#27d59b]/20 bg-[#0b1016] p-5 sm:p-6">
 
-                <div className="rounded-2xl border border-[#27d59b]/20 bg-[#0b1016] p-5 sm:p-6">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-center gap-4">
 
                     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[#27d59b]/30 bg-[#27d59b]/10 text-2xl font-bold text-[#27d59b]">
                       ✓
@@ -1736,185 +1736,167 @@ export default function PerfilPage() {
 
                     <div>
 
-                      <p className="text-lg font-bold">
+                      <p className="text-lg font-bold text-white">
                         WhatsApp conectado correctamente
                       </p>
 
-                      <p className="mt-1 text-sm leading-6 text-gray-500">
-                        Ya podés usar HormiGUITA desde el número vinculado.
+                      <p className="mt-1 text-sm text-gray-500">
+                        Número vinculado: <span className="font-semibold text-[#27d59b]">{whatsappPhone}</span>
                       </p>
 
                     </div>
 
                   </div>
 
-                  <div className="mt-5 rounded-xl border border-gray-800 bg-[#111720] px-4 py-4">
-
-                    <p className="text-xs text-gray-500">
-                      Número conectado
-                    </p>
-
-                    <p className="mt-1 font-semibold text-[#27d59b]">
-                      {whatsappPhone}
-                    </p>
-
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void unlinkWhatsApp()}
+                    disabled={whatsappLoading}
+                    className="rounded-xl border border-red-500/50 px-5 py-3 font-bold text-red-400 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {whatsappLoading
+                      ? "Desvinculando..."
+                      : "Desvincular WhatsApp"}
+                  </button>
 
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => void unlinkWhatsApp()}
-                  disabled={whatsappLoading}
-                  className="rounded-xl border border-red-500/50 px-6 py-3 font-bold text-red-400 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {whatsappLoading
-                    ? "Desvinculando..."
-                    : "Desvincular WhatsApp"}
-                </button>
 
               </div>
 
             ) : whatsappLinkingStarted ? (
 
-              <div className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+              <div className="mt-7 overflow-hidden rounded-2xl border border-[#27d59b]/20 bg-[#0b1016]">
 
-                <div className="rounded-2xl border border-[#27d59b]/15 bg-[#0b1016] p-5 sm:p-6">
+                <div className="grid gap-0 lg:grid-cols-[320px_minmax(0,1fr)]">
 
-                  <p className="text-lg font-bold">
-                    Vinculá tu WhatsApp
-                  </p>
+                  <div className="flex min-h-[340px] items-center justify-center border-b border-[#27d59b]/15 p-8 lg:border-b-0 lg:border-r">
 
-                  <p className="mt-2 text-sm leading-6 text-gray-500">
-                    Escaneá el código QR con tu teléfono. Se abrirá el chat oficial de HormiGUITA con tu código de vinculación listo para enviar.
-                  </p>
+                    {whatsappCode ? (
 
-                  <div className="mt-6 rounded-xl border border-[#27d59b]/20 bg-[#080a0d] p-4">
+                      <div className="rounded-2xl bg-white p-4 shadow-[0_0_35px_rgba(39,213,155,0.12)]">
+                        <QRCode
+                          value={getWhatsAppLink()}
+                          size={230}
+                          level="M"
+                        />
+                      </div>
 
-                    <p className="text-xs text-gray-600">
-                      Tu código temporal
+                    ) : (
+
+                      <div className="text-center">
+                        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#27d59b]/20 border-t-[#27d59b]" />
+                        <p className="mt-4 text-sm text-gray-500">
+                          Generando tu QR...
+                        </p>
+                      </div>
+
+                    )}
+
+                  </div>
+
+                  <div className="flex flex-col justify-center p-6 sm:p-8">
+
+                    <p className="text-2xl font-black text-white">
+                      Escaneá con WhatsApp
                     </p>
 
-                    <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-gray-500">
+                      Escaneá el código QR con tu teléfono. Se abrirá el chat oficial de HormiGUITA con tu código de vinculación listo para enviar.
+                    </p>
 
-                      <p className="font-mono text-2xl font-black tracking-wide text-[#27d59b]">
-                        {whatsappCode ?? "Generando..."}
-                      </p>
+                    <div className="mt-6 rounded-xl border border-[#27d59b]/20 bg-[#080a0d] p-4">
 
-                      {whatsappCode && (
-                        <button
-                          type="button"
-                          onClick={() => void copyWhatsAppCode()}
-                          className="rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold text-gray-300 transition hover:bg-white/5"
-                        >
-                          {whatsappCopied ? "¡Copiado!" : "Copiar"}
-                        </button>
-                      )}
+                      <div className="flex items-center justify-between gap-4">
+
+                        <div className="min-w-0">
+
+                          <p className="text-xs text-gray-600">
+                            Código de vinculación
+                          </p>
+
+                          <p className="mt-1 truncate font-mono text-xl font-black tracking-wide text-[#27d59b]">
+                            {whatsappCode ?? "Generando..."}
+                          </p>
+
+                        </div>
+
+                        {whatsappCode && (
+                          <button
+                            type="button"
+                            onClick={() => void copyWhatsAppCode()}
+                            className="shrink-0 rounded-lg border border-gray-700 px-3 py-2 text-xs font-bold text-gray-300 transition hover:bg-white/5"
+                          >
+                            {whatsappCopied ? "¡Copiado!" : "Copiar"}
+                          </button>
+                        )}
+
+                      </div>
 
                     </div>
 
-                  </div>
+                    <div className="mt-4 flex items-center gap-2 text-sm text-gray-400">
 
-                  <div className="mt-5 flex items-center gap-2 text-sm text-gray-400">
+                      <span>⏱</span>
 
-                    <span>⏱</span>
+                      <span>
+                        Válido por{" "}
+                        <strong className="text-[#27d59b]">
+                          {formatWhatsappTime(whatsappSecondsLeft)}
+                        </strong>
+                      </span>
 
-                    <span>
-                      {whatsappCode
-                        ? <>Válido por <strong className="text-[#27d59b]">{formatWhatsappTime(whatsappSecondsLeft)}</strong></>
-                        : "Generando código seguro..."}
-                    </span>
-
-                  </div>
-
-                  {whatsappCode && (
+                    </div>
 
                     <div className="mt-6 flex flex-col gap-3 sm:flex-row">
 
-                      <a
-                        href={getWhatsAppLink()}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex flex-1 items-center justify-center rounded-xl bg-[#27d59b] px-5 py-3 font-bold text-[#032119] transition hover:brightness-110"
-                      >
-                        Abrir WhatsApp
-                      </a>
+                      {whatsappCode && (
+                        <a
+                          href={getWhatsAppLink()}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex flex-1 items-center justify-center rounded-xl bg-[#27d59b] px-5 py-3 font-bold text-[#032119] transition hover:brightness-110"
+                        >
+                          Abrir WhatsApp
+                        </a>
+                      )}
 
                       <button
                         type="button"
                         onClick={() => void generateWhatsAppCode()}
                         disabled={whatsappLoading}
-                        className="rounded-xl border border-[#27d59b]/30 px-5 py-3 font-bold text-[#27d59b] transition hover:bg-[#27d59b]/5 disabled:opacity-50"
+                        className="rounded-xl border border-[#27d59b]/30 px-5 py-3 font-bold text-[#27d59b] transition hover:bg-[#27d59b]/5 disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Nuevo código
+                        {whatsappLoading
+                          ? "Generando..."
+                          : "Nuevo código"}
                       </button>
 
                     </div>
 
-                  )}
-
-                  <p className="mt-5 text-xs leading-5 text-gray-600">
-                    Si no podés escanear el QR, copiá el código y envialo manualmente al WhatsApp oficial de HormiGUITA.
-                  </p>
+                  </div>
 
                 </div>
 
-                <div className="flex flex-col items-center rounded-2xl border border-[#27d59b]/20 bg-[#0b1016] p-5">
-
-                  {whatsappCode ? (
-
-                    <>
-
-                      <div className="rounded-2xl bg-white p-3">
-                        <QRCode
-                          value={getWhatsAppLink()}
-                          size={220}
-                          level="M"
-                        />
-                      </div>
-
-                      <p className="mt-5 text-center font-bold">
-                        Escaneá para conectar
-                      </p>
-
-                      <p className="mt-2 text-center text-xs leading-5 text-gray-500">
-                        WhatsApp se abrirá con el código ya preparado.
-                      </p>
-
-                    </>
-
-                  ) : (
-
-                    <div className="flex min-h-[260px] items-center justify-center">
-
-                      <div className="text-center">
-
-                        <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-[#27d59b]/20 border-t-[#27d59b]" />
-
-                        <p className="mt-4 text-sm text-gray-500">
-                          Generando tu QR...
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                  )}
-
+                <div className="border-t border-white/5 px-6 py-4 text-center text-xs text-gray-600 sm:px-8">
+                  Si el código vence, se generará uno nuevo automáticamente. También podés generar uno nuevo cuando quieras.
                 </div>
 
               </div>
 
             ) : (
 
-              <div className="mt-7 rounded-2xl border border-dashed border-gray-800 bg-[#0b1016] p-6 text-center">
+              <div className="mt-7 rounded-2xl border border-dashed border-gray-800 bg-[#0b1016] p-8 text-center">
 
-                <p className="font-semibold text-gray-300">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#27d59b]/10 text-xl">
+                  📱
+                </div>
+
+                <p className="mt-4 font-semibold text-gray-200">
                   Conectá tu cuenta para usar HormiGUITA desde WhatsApp
                 </p>
 
-                <p className="mt-2 text-sm text-gray-600">
-                  Vas a poder registrar movimientos y consultar tu información directamente desde el chat.
+                <p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-gray-600">
+                  Tocá “Vincular WhatsApp” para generar un código temporal y un QR seguro.
                 </p>
 
               </div>
