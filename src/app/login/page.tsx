@@ -381,34 +381,38 @@ export default function LoginPage() {
 
   if (showTwoFactor) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#080a0d] px-6 py-10 text-white">
-        <div className="w-full max-w-md">
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07090b] px-5 py-10 text-white">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-[18%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[#27d59b]/[0.045] blur-[110px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.025),transparent_42%)]" />
+        </div>
+        <div className="relative z-10 w-full max-w-[430px]">
 
           {/* LOGO */}
 
-          <div className="mb-8 flex justify-center">
+          <div className="mb-7 flex justify-center">
             <Link href="/">
               <Image
                 src="/logo-HormiGUITA.png"
                 alt="HormiGUITA"
-                width={90}
-                height={90}
+                width={72}
+                height={72}
                 priority
-                className="object-contain"
+                className="object-contain drop-shadow-[0_0_22px_rgba(39,213,155,0.18)]"
               />
             </Link>
           </div>
 
           {/* CARD */}
 
-          <div className="rounded-3xl border border-gray-800 bg-[#111720] p-8 shadow-2xl">
+          <div className="rounded-[26px] border border-white/[0.08] bg-[#0d1218]/95 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:p-8">
 
-            <div className="mb-8 text-center">
-              <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#27d59b]/10 text-3xl">
+            <div className="mb-7 text-center">
+              <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-[#27d59b]/15 bg-[#27d59b]/[0.08] text-2xl shadow-[0_10px_35px_rgba(39,213,155,0.08)]">
                 🔐
               </div>
 
-              <h1 className="text-3xl font-black">
+              <h1 className="text-[30px] font-black tracking-[-0.035em]">
                 Verificación en dos pasos
               </h1>
 
@@ -423,7 +427,7 @@ export default function LoginPage() {
               {/* CÓDIGO */}
 
               <div>
-                <label className="mb-2 block text-sm text-gray-300">
+                <label className="mb-2 block text-[13px] font-medium text-[#c6ced7]">
                   Código de autenticación
                 </label>
 
@@ -442,21 +446,21 @@ export default function LoginPage() {
                     )
                   }
                   placeholder="123456"
-                  className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-white outline-none transition focus:border-[#27d59b]"
+                  className="w-full rounded-xl border border-white/[0.09] bg-[#080c10] px-4 py-4 text-center text-2xl font-bold tracking-[0.5em] text-white outline-none transition focus:border-[#27d59b]/70 focus:ring-4 focus:ring-[#27d59b]/[0.07]"
                 />
               </div>
 
               {/* ERROR */}
 
               {error && (
-                <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+                <div className="rounded-xl border border-red-400/15 bg-red-400/[0.07] p-3 text-[13px] leading-5 text-red-300">
                   {error}
                 </div>
               )}
 
               {/* DISPOSITIVO CONFIABLE */}
 
-              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-800 bg-[#0b1016] p-4">
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.07] bg-[#080c10] p-4 transition hover:border-white/[0.11]">
                 <input
                   type="checkbox"
                   checked={trustDevice}
@@ -470,11 +474,11 @@ export default function LoginPage() {
                 />
 
                 <span>
-                  <span className="block text-sm font-semibold text-gray-200">
+                  <span className="block text-[13px] font-semibold text-[#d5dbe1]">
                     Confiar en este dispositivo durante 30 días
                   </span>
 
-                  <span className="mt-1 block text-xs leading-5 text-gray-500">
+                  <span className="mt-1 block text-[12px] leading-5 text-[#68737f]">
                     No te pediremos el código 2FA
                     nuevamente desde este navegador
                     durante 30 días.
@@ -491,7 +495,7 @@ export default function LoginPage() {
                   twoFactorLoading ||
                   twoFactorCode.length !== 6
                 }
-                className="w-full rounded-xl bg-gradient-to-r from-[#27d59b] to-[#16b78a] px-5 py-4 font-extrabold text-[#032119] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl bg-[#27d59b] px-5 py-3.5 text-[14px] font-extrabold text-[#041c15] shadow-[0_10px_30px_rgba(39,213,155,0.14)] transition hover:bg-[#35dca4] hover:shadow-[0_12px_34px_rgba(39,213,155,0.20)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {twoFactorLoading
                   ? "Verificando..."
@@ -504,14 +508,14 @@ export default function LoginPage() {
                 type="button"
                 onClick={cancelarTwoFactor}
                 disabled={twoFactorLoading}
-                className="w-full rounded-xl border border-gray-700 px-5 py-3 font-semibold text-gray-400 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
+                className="w-full rounded-xl border border-white/[0.08] px-5 py-3 text-[13px] font-semibold text-[#8a949f] transition hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
               >
                 Volver al inicio de sesión
               </button>
 
             </div>
 
-            <div className="mt-7 text-center text-xs text-gray-600">
+            <div className="mt-7 text-center text-[11px] text-[#505b66]">
               Tu código cambia cada pocos segundos.
             </div>
 
@@ -526,13 +530,17 @@ export default function LoginPage() {
   // =========================
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#080a0d] px-6 py-10 text-white">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#07090b] px-5 py-10 text-white">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute left-1/2 top-[18%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-[#27d59b]/[0.045] blur-[110px]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.025),transparent_42%)]" />
+        </div>
 
-      <div className="w-full max-w-md">
+      <div className="relative z-10 w-full max-w-[430px]">
 
         {/* LOGO */}
 
-        <div className="mb-8 flex justify-center">
+        <div className="mb-7 flex justify-center">
           <Link href="/">
             <Image
               src="/logo-HormiGUITA.png"
@@ -540,21 +548,21 @@ export default function LoginPage() {
               width={90}
               height={90}
               priority
-              className="object-contain"
+              className="object-contain drop-shadow-[0_0_22px_rgba(39,213,155,0.18)]"
             />
           </Link>
         </div>
 
         {/* CARD */}
 
-        <div className="rounded-3xl border border-gray-800 bg-[#111720] p-8 shadow-2xl">
+        <div className="rounded-[26px] border border-white/[0.08] bg-[#0d1218]/95 p-7 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-xl sm:p-8">
 
-          <div className="mb-8 text-center">
-            <h1 className="text-3xl font-black">
+          <div className="mb-7 text-center">
+            <h1 className="text-[30px] font-black tracking-[-0.035em]">
               Bienvenido 🐜
             </h1>
 
-            <p className="mt-2 text-gray-400">
+            <p className="mt-2 text-sm leading-6 text-[#89939f]">
               Ingresá a tu cuenta de HormiGUITA
             </p>
           </div>
@@ -567,7 +575,7 @@ export default function LoginPage() {
             {/* EMAIL */}
 
             <div>
-              <label className="mb-2 block text-sm text-gray-300">
+              <label className="mb-2 block text-[13px] font-medium text-[#c6ced7]">
                 Correo electrónico
               </label>
 
@@ -581,7 +589,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 required
                 disabled={loading}
-                className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none transition focus:border-[#27d59b] disabled:opacity-50"
+                className="w-full rounded-xl border border-white/[0.09] bg-[#080c10] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-[#56616d] focus:border-[#27d59b]/70 focus:bg-[#0a0f14] focus:ring-4 focus:ring-[#27d59b]/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
@@ -589,13 +597,13 @@ export default function LoginPage() {
 
             <div>
               <div className="mb-2 flex items-center justify-between gap-3">
-                <label className="text-sm text-gray-300">
+                <label className="text-[13px] font-medium text-[#c6ced7]">
                   Contraseña
                 </label>
 
                 <button
                   type="button"
-                  className="text-xs text-[#27d59b] hover:underline"
+                  className="text-[12px] font-medium text-[#35dca4] transition hover:text-[#70ebc2] hover:underline"
                   onClick={() =>
                     setError(
                       "La recuperación de contraseña la vamos a agregar en el siguiente paso."
@@ -616,14 +624,14 @@ export default function LoginPage() {
                 autoComplete="current-password"
                 required
                 disabled={loading}
-                className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none transition focus:border-[#27d59b] disabled:opacity-50"
+                className="w-full rounded-xl border border-white/[0.09] bg-[#080c10] px-4 py-3.5 text-[15px] text-white outline-none transition placeholder:text-[#56616d] focus:border-[#27d59b]/70 focus:bg-[#0a0f14] focus:ring-4 focus:ring-[#27d59b]/[0.07] disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
             {/* ERROR */}
 
             {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+              <div className="rounded-xl border border-red-400/15 bg-red-400/[0.07] p-3 text-[13px] leading-5 text-red-300">
                 {error}
               </div>
             )}
@@ -633,7 +641,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-gradient-to-r from-[#27d59b] to-[#16b78a] px-5 py-4 font-extrabold text-[#032119] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl bg-[#27d59b] px-5 py-3.5 text-[14px] font-extrabold text-[#041c15] shadow-[0_10px_30px_rgba(39,213,155,0.14)] transition hover:bg-[#35dca4] hover:shadow-[0_12px_34px_rgba(39,213,155,0.20)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading
                 ? "Iniciando sesión..."
@@ -644,12 +652,12 @@ export default function LoginPage() {
 
           {/* REGISTRO */}
 
-          <div className="mt-7 text-center text-sm text-gray-500">
+          <div className="mt-7 border-t border-white/[0.06] pt-6 text-center text-[13px] text-[#69737e]">
             ¿Todavía no tenés una cuenta?
 
             <Link
               href="/registro"
-              className="ml-2 font-semibold text-[#27d59b] hover:underline"
+              className="ml-1.5 font-semibold text-[#35dca4] transition hover:text-[#70ebc2] hover:underline"
             >
               Crear cuenta
             </Link>

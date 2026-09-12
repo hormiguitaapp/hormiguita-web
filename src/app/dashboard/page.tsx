@@ -15,8 +15,6 @@ type Transaction = {
   description: string | null;
   source: "manual" | "whatsapp_text" | "whatsapp_audio";
   transaction_date: string;
-  goal_id: string | null;
-  is_goal_contribution: boolean;
 };
 
 type Category = {
@@ -33,22 +31,64 @@ type Profile = {
   avatar_url: string | null;
 };
 
+type ExchangeQuote = {
+  buy: number;
+  sell: number;
+};
+
 type ExchangeRate = {
-  currency: "USD";
-  type: "official_sell";
-  rate: number;
+  date: string;
+  updatedAt: string;
   source: string;
   sourceName: string;
-  updatedAt: string;
+  currencies: {
+    USD: ExchangeQuote;
+    EUR: ExchangeQuote;
+    BRL: ExchangeQuote;
+  };
 };
 
+function formatARS(value: number) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
-type Goal = {
-  id: string;
-  name: string;
-  current_amount_ars: number;
-  currency: "ARS" | "USD";
-};
+function formatBnaQuote(value: number) {
+  return new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+function formatExchangeDate(value: string, compact = false) {
+  if (compact) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "--/--/----";
+    return date.toLocaleDateString("es-AR", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      timeZone: "America/Argentina/Buenos_Aires",
+    });
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Fecha no disponible";
+  }
+
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
 
 const DEFAULT_CATEGORIES = [
   { name: "Alimentación", type: "expense" as const, icon: "food" },
@@ -302,11 +342,11 @@ export default function DashboardPage() {
   const [exchangeRate, setExchangeRate] =
     useState<ExchangeRate | null>(null);
 
-  const [goals, setGoals] =
-    useState<Goal[]>([]);
+  const [exchangeLoading, setExchangeLoading] =
+    useState(true);
 
-  const [goalId, setGoalId] =
-    useState("");
+  const [exchangeError, setExchangeError] =
+    useState(false);
 
   const [loading, setLoading] =
     useState(true);
@@ -321,7 +361,7 @@ export default function DashboardPage() {
     useState(false);
 
   const [type, setType] =
-    useState<"income" | "expense" | "saving">(
+    useState<"income" | "expense">(
       "expense"
     );
 
@@ -349,11 +389,18 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboard();
-    loadGoals();
     loadExchangeRate();
 
+    // BNA: comprobación automática cada hora, de lunes a viernes.
+    // Fuera de esos días, la cotización queda en la última disponible.
     const interval = window.setInterval(() => {
-      loadExchangeRate();
+      const now = new Date();
+      const day = now.getDay();
+      const isWeekday = day >= 1 && day <= 5;
+
+      if (isWeekday) {
+        loadExchangeRate();
+      }
     }, 60 * 60 * 1000);
 
     return () => {
@@ -361,59 +408,55 @@ export default function DashboardPage() {
     };
   }, []);
 
-  async function loadGoals() {
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return;
-      }
-
-      const {
-        data,
-        error: goalsError,
-      } = await supabase
-        .from("goals")
-        .select("id, name, current_amount_ars, currency")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (goalsError) {
-        console.error("Error cargando objetivos:", goalsError);
-        return;
-      }
-
-      setGoals(data ?? []);
-    } catch (error) {
-      console.error("Error cargando objetivos:", error);
-    }
-  }
-
   async function loadExchangeRate() {
+    setExchangeLoading(true);
+    setExchangeError(false);
+
     try {
-      const response = await fetch("/api/exchange-rate", {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        "/api/exchange-rate",
+        {
+          cache: "no-store",
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("No se pudo obtener la cotización.");
+        throw new Error(
+          "No se pudo obtener la cotización."
+        );
       }
 
-      const data = (await response.json()) as ExchangeRate;
+      const data =
+        (await response.json()) as ExchangeRate;
 
       if (
-        data.currency !== "USD" ||
-        data.type !== "official_sell" ||
-        typeof data.rate !== "number"
+        !data.currencies?.USD ||
+        !data.currencies?.EUR ||
+        !data.currencies?.BRL ||
+        typeof data.currencies.USD.buy !== "number" ||
+        typeof data.currencies.USD.sell !== "number" ||
+        typeof data.currencies.EUR.buy !== "number" ||
+        typeof data.currencies.EUR.sell !== "number" ||
+        typeof data.currencies.BRL.buy !== "number" ||
+        typeof data.currencies.BRL.sell !== "number" ||
+        typeof data.updatedAt !== "string"
       ) {
-        throw new Error("Cotización inválida.");
+        throw new Error(
+          "Cotización inválida."
+        );
       }
 
       setExchangeRate(data);
     } catch (error) {
-      console.error("Error obteniendo cotización:", error);
+      console.error(
+        "Error obteniendo cotización:",
+        error
+      );
+
+      setExchangeRate(null);
+      setExchangeError(true);
+    } finally {
+      setExchangeLoading(false);
     }
   }
 
@@ -512,7 +555,7 @@ export default function DashboardPage() {
       } = await supabase
         .from("transactions")
         .select(
-          "id, user_id, category_id, type, amount, description, source, transaction_date, goal_id, is_goal_contribution"
+          "id, user_id, category_id, type, amount, description, source, transaction_date"
         )
         .eq("user_id", user.id)
         .order("transaction_date", {
@@ -633,8 +676,7 @@ export default function DashboardPage() {
       .filter(
         (transaction) =>
           transaction.type ===
-          "income" &&
-          transaction.is_goal_contribution !== true
+          "income"
       )
       .reduce(
         (total, transaction) =>
@@ -657,20 +699,8 @@ export default function DashboardPage() {
         0
       );
 
-  const totalGoalContributions =
-    transactions
-      .filter(
-        (transaction) =>
-          transaction.is_goal_contribution === true
-      )
-      .reduce(
-        (total, transaction) =>
-          total + Number(transaction.amount),
-        0
-      );
-
   const balance =
-    totalIncome - totalExpense - totalGoalContributions;
+    totalIncome - totalExpense;
 
   /*
    * GASTOS POR CATEGORÍA
@@ -800,7 +830,6 @@ export default function DashboardPage() {
     setAmount("");
     setCategoryId("");
     setSource("manual");
-    setGoalId("");
 
     setDate(
       new Date()
@@ -820,24 +849,29 @@ export default function DashboardPage() {
     setError("");
 
     if (!description.trim()) {
-      setError("Ingresá una descripción.");
+      setError(
+        "Ingresá una descripción."
+      );
       return;
     }
 
-    const numericAmount = Number(amount);
+    const numericAmount =
+      Number(amount);
 
-    if (!numericAmount || numericAmount <= 0) {
-      setError("Ingresá un monto válido.");
+    if (
+      !numericAmount ||
+      numericAmount <= 0
+    ) {
+      setError(
+        "Ingresá un monto válido."
+      );
       return;
     }
 
-    if (type === "saving") {
-      if (!goalId) {
-        setError("Seleccioná un objetivo.");
-        return;
-      }
-    } else if (!categoryId) {
-      setError("Seleccioná una categoría.");
+    if (!categoryId) {
+      setError(
+        "Seleccioná una categoría."
+      );
       return;
     }
 
@@ -846,115 +880,47 @@ export default function DashboardPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setError("La sesión expiró. Volvé a iniciar sesión.");
+      setError(
+        "La sesión expiró. Volvé a iniciar sesión."
+      );
+
       return;
     }
 
     setSaving(true);
 
-    if (type === "saving") {
-      const selectedGoal = goals.find(
-        (goal) => goal.id === goalId
+    const {
+      error: insertError,
+    } = await supabase
+      .from("transactions")
+      .insert({
+        user_id: user.id,
+        category_id: categoryId,
+        type,
+        amount: numericAmount,
+        description:
+          description.trim(),
+        source,
+        transaction_date: date,
+      });
+
+    if (insertError) {
+      console.error(
+        insertError
       );
 
-      if (!selectedGoal) {
-        setError("El objetivo seleccionado no está disponible.");
-        setSaving(false);
-        return;
-      }
+      setError(
+        `No se pudo guardar el movimiento: ${insertError.message}`
+      );
 
-      const currentGoalARS =
-        Number(selectedGoal.current_amount_ars) || 0;
-
-      const {
-        error: goalError,
-      } = await supabase
-        .from("goals")
-        .update({
-          current_amount_ars: currentGoalARS + numericAmount,
-          current_amount: 0,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", selectedGoal.id)
-        .eq("user_id", user.id);
-
-      if (goalError) {
-        console.error("Error actualizando objetivo:", goalError);
-        setError("No se pudo actualizar el objetivo.");
-        setSaving(false);
-        return;
-      }
-
-      const {
-        error: insertError,
-      } = await supabase
-        .from("transactions")
-        .insert({
-          user_id: user.id,
-          category_id: null,
-          type: "income",
-          amount: numericAmount,
-          description: description.trim(),
-          source,
-          transaction_date: date,
-          goal_id: selectedGoal.id,
-          is_goal_contribution: true,
-        });
-
-      if (insertError) {
-        console.error("Error guardando aporte:", insertError);
-
-        await supabase
-          .from("goals")
-          .update({
-            current_amount_ars: currentGoalARS,
-            current_amount: 0,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", selectedGoal.id)
-          .eq("user_id", user.id);
-
-        setError(
-          `No se pudo guardar el aporte: ${insertError.message}`
-        );
-
-        setSaving(false);
-        return;
-      }
-    } else {
-      const {
-        error: insertError,
-      } = await supabase
-        .from("transactions")
-        .insert({
-          user_id: user.id,
-          category_id: categoryId,
-          type,
-          amount: numericAmount,
-          description: description.trim(),
-          source,
-          transaction_date: date,
-        });
-
-      if (insertError) {
-        console.error(insertError);
-
-        setError(
-          `No se pudo guardar el movimiento: ${insertError.message}`
-        );
-
-        setSaving(false);
-        return;
-      }
+      setSaving(false);
+      return;
     }
 
     setSaving(false);
     setShowModal(false);
 
-    await Promise.all([
-      loadDashboard(),
-      loadGoals(),
-    ]);
+    await loadDashboard();
   }
 
   /*
@@ -967,13 +933,25 @@ export default function DashboardPage() {
       "/login";
   }
 
+  const exchangeRows: Array<{
+    flag: string;
+    name: string;
+    quote: ExchangeQuote;
+  }> = exchangeRate
+    ? [
+        { flag: "🇺🇸", name: "Dólar U.S.A", quote: exchangeRate.currencies.USD },
+        { flag: "🇪🇺", name: "Euro", quote: exchangeRate.currencies.EUR },
+        { flag: "🇧🇷", name: "Real", quote: exchangeRate.currencies.BRL },
+      ]
+    : [];
+
   /*
    * LOADING
    */
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#080a0d] text-white">
+      <main className="flex min-h-screen items-center justify-center bg-[#07090b] text-white">
         <div className="text-center">
 
           <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-[#27d59b]/20 bg-[#27d59b]/10 text-[#27d59b]">
@@ -990,7 +968,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#080a0d] text-white">
+    <main className="min-h-screen bg-[#07090b] text-white">
 
       {/* SIDEBAR */}
 
@@ -1005,7 +983,7 @@ export default function DashboardPage() {
 
         {/* TOPBAR */}
 
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-white/10 bg-[#080a0d]/90 px-6 backdrop-blur-xl lg:px-10">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-white/[0.07] bg-[#07090b]/85 px-6 backdrop-blur-xl lg:px-10">
 
           <div>
 
@@ -1021,25 +999,39 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-5">
 
-            {exchangeRate && (
-              <div
-                className="hidden sm:flex items-center gap-2 rounded-xl border border-[#27d59b]/10 bg-[#27d59b]/5 px-3 py-2"
-                title="Dólar oficial · venta"
-              >
-                <span className="h-2 w-2 rounded-full bg-[#27d59b]" />
-                <div className="leading-none">
-                  <div className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                    Valor actual del USD
-                  </div>
-                  <div className="mt-1 text-sm font-bold text-[#27d59b]">
-                    {money(exchangeRate.rate)}
-                  </div>
-                </div>
+            {/* COTIZACIÓN BNA · FORMATO COMPACTO */}
+            <div className="hidden md:block overflow-hidden rounded-xl border border-white/[0.08] bg-[#0d1218] shadow-[0_10px_35px_rgba(0,0,0,0.18)]">
+              <div className="border-b border-white/[0.07] px-4 py-1.5 text-center text-[10px] font-semibold uppercase tracking-[1px] text-white/55">
+                Cotización Billetes
               </div>
-            )}
-
-            <div className="flex items-center gap-3">
-
+              {exchangeLoading && !exchangeRate ? (
+                <div className="flex h-[101px] w-[390px] items-center justify-center">
+                  <span className="h-3 w-40 animate-pulse rounded bg-white/[0.06]" />
+                </div>
+              ) : exchangeRate ? (
+                <>
+                  <div className="grid grid-cols-[1.35fr_1fr_1fr] items-center px-4 py-1 text-[10px] text-white/35">
+                    <span>{formatExchangeDate(exchangeRate.updatedAt, true)}</span>
+                    <span className="text-center font-semibold text-white/55">Compra</span>
+                    <span className="text-right font-semibold text-white/55">Venta</span>
+                  </div>
+                  {exchangeRows.map(({ flag, name, quote }) => (
+                    <div key={String(name)} className="grid grid-cols-[1.35fr_1fr_1fr] items-center px-4 py-1.5 text-xs">
+                      <span className="font-medium text-white/65">{flag} {name}</span>
+                      <span className="text-center font-semibold text-white/85">{formatBnaQuote(quote.buy)}</span>
+                      <span className="text-right font-bold text-[#35dca4]">{formatBnaQuote(quote.sell)}</span>
+                    </div>
+                  ))}
+                </>
+              ) : exchangeError ? (
+                <button
+                  onClick={loadExchangeRate}
+                  className="h-[101px] w-[390px] px-3 text-xs text-red-300 hover:underline"
+                >
+                  No se pudo actualizar · Reintentar
+                </button>
+              ) : null}
+            </div>
             <Link
               href="/perfil"
               className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-[#27d59b] to-[#16b78a] font-bold text-[#032119] transition hover:scale-105"
@@ -1075,13 +1067,11 @@ export default function DashboardPage() {
 
             </Link>
 
-            </div>
-
           </div>
 
         </header>
 
-        <div className="p-6 lg:p-10">
+        <div className="p-6 lg:p-10 xl:p-12">
 
           {/* SALUDO */}
 
@@ -1109,7 +1099,7 @@ export default function DashboardPage() {
               onClick={
                 openNewTransaction
               }
-              className="rounded-xl bg-gradient-to-r from-[#27d59b] to-[#16b78a] px-6 py-3 font-extrabold text-[#032119] shadow-lg shadow-[#16b78a]/20 transition hover:brightness-110"
+              className="rounded-xl bg-[#27d59b] px-6 py-3 font-extrabold text-[#041c15] shadow-[0_12px_35px_rgba(39,213,155,0.14)] transition hover:bg-[#35dca4] hover:shadow-[0_14px_40px_rgba(39,213,155,0.20)]"
             >
               + Nuevo movimiento
             </button>
@@ -1124,6 +1114,27 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* COTIZACIÓN BNA · MOBILE */}
+          <div className="mb-5 md:hidden">
+            <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0d1218]">
+              <div className="border-b border-white/[0.07] px-4 py-2 text-[10px] font-semibold uppercase tracking-[1px] text-white/45">
+                Cotización Billetes · {exchangeRate ? formatExchangeDate(exchangeRate.updatedAt, true) : "BNA"}
+              </div>
+              {exchangeRate ? (
+                <div className="divide-y divide-white/[0.06]">
+                  {exchangeRows.map(({ flag, name, quote }) => (
+                    <div key={String(name)} className="grid grid-cols-[1.35fr_1fr_1fr] items-center px-4 py-2.5 text-xs">
+                      <span className="font-medium text-white/65">{flag} {name}</span>
+                      <span className="text-center"><span className="block text-[9px] text-white/30">Compra</span><b>{formatBnaQuote(quote.buy)}</b></span>
+                      <span className="text-right"><span className="block text-[9px] text-white/30">Venta</span><b className="text-[#35dca4]">{formatBnaQuote(quote.sell)}</b></span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <button onClick={loadExchangeRate} className="w-full px-4 py-3 text-xs text-white/45">Actualizar cotización</button>
+              )}
+            </div>
+          </div>
           {/* ESTADÍSTICAS */}
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -1164,7 +1175,7 @@ export default function DashboardPage() {
 
             {/* GRÁFICO */}
 
-            <div className="rounded-2xl border border-gray-800 bg-[#111720] p-6">
+            <div className="rounded-[22px] border border-white/[0.08] bg-[#0d1218] shadow-[0_18px_55px_rgba(0,0,0,0.16)] p-6">
 
               <div className="mb-6">
 
@@ -1185,7 +1196,7 @@ export default function DashboardPage() {
 
                   <div className="text-center">
 
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-gray-800 bg-[#111720] text-gray-500">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-[22px] border border-white/[0.08] bg-[#0d1218] shadow-[0_18px_55px_rgba(0,0,0,0.16)] text-gray-500">
                       <svg
                         width="20"
                         height="20"
@@ -1242,7 +1253,7 @@ export default function DashboardPage() {
 
             {/* CATEGORÍAS */}
 
-            <div className="rounded-2xl border border-gray-800 bg-[#111720] p-6">
+            <div className="rounded-[22px] border border-white/[0.08] bg-[#0d1218] shadow-[0_18px_55px_rgba(0,0,0,0.16)] p-6">
 
               <div className="mb-5">
 
@@ -1320,7 +1331,7 @@ export default function DashboardPage() {
 
           {/* HISTORIAL */}
 
-          <div className="mt-5 rounded-2xl border border-gray-800 bg-[#111720] p-6">
+          <div className="mt-5 rounded-[22px] border border-white/[0.08] bg-[#0d1218] shadow-[0_18px_55px_rgba(0,0,0,0.16)] p-6">
 
             <div className="mb-5 flex items-center justify-between">
 
@@ -1421,30 +1432,18 @@ export default function DashboardPage() {
 
                           <div>
 
-                            <div className="flex items-center gap-2 text-sm font-semibold">
-                              {transaction.is_goal_contribution && (
-                                <span
-                                  className="text-[#f5c451]"
-                                  title="Aporte a un objetivo"
-                                  aria-label="Aporte a un objetivo"
-                                >
-                                  ★
-                                </span>
-                              )}
-
-                              <span>
-                                {transaction.description ||
-                                  "Sin descripción"}
-                              </span>
+                            <div className="text-sm font-semibold">
+                              {
+                                transaction.description ||
+                                "Sin descripción"
+                              }
                             </div>
 
                             <div className="mt-1 text-xs text-gray-500">
 
-                              {transaction.is_goal_contribution
-                                ? "Objetivo"
-                                : getCategoryName(
-                                    transaction.category_id
-                                  )}
+                              {getCategoryName(
+                                transaction.category_id
+                              )}
 
                               {" · "}
 
@@ -1529,7 +1528,7 @@ export default function DashboardPage() {
 
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-5 backdrop-blur-sm">
 
-          <div className="w-full max-w-lg rounded-3xl border border-gray-800 bg-[#111720] p-7">
+          <div className="w-full max-w-lg rounded-3xl border border-gray-800 bg-[#0d1218] p-7 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
 
             <div className="mb-7 flex items-start justify-between">
 
@@ -1574,14 +1573,15 @@ export default function DashboardPage() {
                     const newType =
                       e.target.value as
                         | "income"
-                        | "expense"
-                        | "saving";
+                        | "expense";
 
-                    setType(newType);
-                    setCategoryId("");
-                    if (newType !== "saving") {
-                      setGoalId("");
-                    }
+                    setType(
+                      newType
+                    );
+
+                    setCategoryId(
+                      ""
+                    );
                   }}
                   className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none"
                 >
@@ -1594,53 +1594,9 @@ export default function DashboardPage() {
                     Ingreso
                   </option>
 
-                  <option value="saving">
-                    Ahorro / Objetivo
-                  </option>
-
                 </select>
 
               </div>
-
-              {/* OBJETIVO */}
-
-              {type === "saving" && (
-                <div className="rounded-2xl border border-[#27d59b]/20 bg-[#27d59b]/5 p-4">
-
-                  <label className="mb-2 block text-sm font-semibold text-gray-200">
-                    Objetivo
-                  </label>
-
-                  <select
-                    value={goalId}
-                    onChange={(e) =>
-                      setGoalId(e.target.value)
-                    }
-                    className="w-full rounded-xl border border-gray-700 bg-[#0b1016] px-4 py-3 text-white outline-none focus:border-[#27d59b]"
-                  >
-                    <option value="">
-                      Seleccioná un objetivo
-                    </option>
-
-                    {goals.map((goal) => (
-                      <option key={goal.id} value={goal.id}>
-                        {goal.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {goals.length === 0 && (
-                    <p className="mt-2 text-xs text-gray-500">
-                      Primero creá un objetivo en la sección Objetivos.
-                    </p>
-                  )}
-
-                  <p className="mt-2 text-xs text-gray-500">
-                    Este aporte se sumará al objetivo y se destacará como ahorro.
-                  </p>
-
-                </div>
-              )}
 
               {/* DESCRIPCIÓN */}
 
@@ -1691,7 +1647,6 @@ export default function DashboardPage() {
 
               {/* CATEGORÍA */}
 
-              {type !== "saving" && (
               <div>
 
                 <label className="mb-2 block text-sm text-gray-300">
@@ -1741,7 +1696,6 @@ export default function DashboardPage() {
                   )}
 
               </div>
-              )}
 
               {/* ORIGEN */}
 
@@ -1856,14 +1810,14 @@ function StatCard({
   red?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-gray-800 bg-[#111720] p-6">
+    <div className="rounded-[22px] border border-white/[0.08] bg-[#0d1218] shadow-[0_18px_55px_rgba(0,0,0,0.16)] p-6">
 
       <div className="text-sm text-gray-500">
         {title}
       </div>
 
       <div
-        className={`mt-3 text-2xl font-black ${
+        className={`mt-3 text-[27px] font-black tracking-[-0.03em] ${
           green
             ? "text-[#27d59b]"
             : red
