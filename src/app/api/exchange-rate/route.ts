@@ -21,7 +21,7 @@ function extractQuote(text: string, currency: string): Quote {
 
   const chunk = text.slice(index, index + 220);
   const values = [
-    ...chunk.matchAll(/\b\d{1,3}(?:\.\d{3})*,\d{2}\b/g),
+    ...chunk.matchAll(/\b\d+(?:\.\d{3})*,\d{2}\b/g),
   ]
     .map((match) => match[0])
     .slice(0, 2);
