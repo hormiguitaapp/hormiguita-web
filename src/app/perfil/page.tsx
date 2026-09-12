@@ -97,9 +97,6 @@ export default function PerfilPage() {
   const whatsappGeneratingRef =
     useRef(false);
 
-  const whatsappCheckingRef =
-    useRef(false);
-
   // =========================
   // MFA / 2FA
   // =========================
@@ -177,22 +174,36 @@ export default function PerfilPage() {
     whatsappLinkingStarted,
   ]);
 
+  // Solo comprobamos periódicamente mientras el usuario está intentando vincular.
+  // Al entrar al perfil NO hacemos polling infinito.
   useEffect(() => {
-    if (whatsappPhone) {
+    if (
+      whatsappPhone ||
+      !whatsappLinkingStarted ||
+      !whatsappCode
+    ) {
       return;
     }
 
+    const checkConnection = () => {
+      void loadWhatsAppConnection();
+    };
+
+    checkConnection();
+
     const interval = window.setInterval(
-      () => {
-        void loadWhatsAppConnection();
-      },
+      checkConnection,
       3000
     );
 
     return () => {
       window.clearInterval(interval);
     };
-  }, [whatsappPhone]);
+  }, [
+    whatsappPhone,
+    whatsappLinkingStarted,
+    whatsappCode,
+  ]);
 
   // =========================
   // CARGAR PERFIL
@@ -1208,7 +1219,6 @@ export default function PerfilPage() {
 
     whatsappGeneratingRef.current = true;
 
-    setWhatsappLinkingStarted(true);
     setError("");
     setWhatsappLoading(true);
     setWhatsappCopied(false);
@@ -1233,6 +1243,7 @@ export default function PerfilPage() {
         );
       }
 
+      setWhatsappLinkingStarted(true);
       setWhatsappCode(data.code ?? null);
       setWhatsappExpiresAt(
         data.expiresAt ?? null
@@ -1256,6 +1267,8 @@ export default function PerfilPage() {
         err
       );
 
+      setWhatsappLinkingStarted(false);
+
       setError(
         err instanceof Error
           ? err.message
@@ -1268,43 +1281,30 @@ export default function PerfilPage() {
   }
 
   async function loadWhatsAppConnection() {
-    if (whatsappCheckingRef.current) {
-      return whatsappPhone;
-    }
-
-    whatsappCheckingRef.current = true;
-
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        return null;
-      }
-
       setWhatsappChecking(true);
 
-      const {
-        data,
-        error: connectionError,
-      } = await supabase
-        .from("whatsapp_connections")
-        .select("phone_number")
-        .eq("user_id", user.id)
-        .maybeSingle();
+      const response = await fetch(
+        "/api/whatsapp/status",
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
 
-      if (connectionError) {
-        console.error(
-          "Error consultando WhatsApp:",
-          connectionError
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ??
+            "No se pudo consultar el estado de WhatsApp."
         );
-
-        return null;
       }
 
       const phone =
-        data?.phone_number ?? null;
+        typeof data?.phoneNumber === "string"
+          ? data.phoneNumber
+          : null;
 
       setWhatsappPhone(phone);
 
@@ -1316,8 +1316,16 @@ export default function PerfilPage() {
       }
 
       return phone;
+    } catch (err) {
+      console.error(
+        "Error consultando WhatsApp:",
+        err
+      );
+
+      // No inventamos una conexión si la consulta falla.
+      setWhatsappPhone(null);
+      return null;
     } finally {
-      whatsappCheckingRef.current = false;
       setWhatsappChecking(false);
     }
   }
@@ -1338,18 +1346,22 @@ export default function PerfilPage() {
         "/api/whatsapp/unlink",
         {
           method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
         }
       );
 
       const data = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok || !data?.success) {
         throw new Error(
           data?.error ??
             "No se pudo desvincular WhatsApp."
         );
       }
 
+      // Limpiamos todo el estado local inmediatamente.
       setWhatsappPhone(null);
       setWhatsappCode(null);
       setWhatsappExpiresAt(null);

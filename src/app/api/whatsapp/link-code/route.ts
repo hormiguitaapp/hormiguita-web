@@ -24,6 +24,44 @@ export async function POST() {
       );
     }
 
+    // Una cuenta que ya está vinculada no necesita generar otro código.
+    const { data: connection, error: connectionError } = await supabase
+      .from("whatsapp_connections")
+      .select("phone_number")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (connectionError) {
+      console.error("Error comprobando conexión de WhatsApp:", connectionError);
+
+      return NextResponse.json(
+        { error: "No se pudo comprobar el estado de WhatsApp." },
+        { status: 500 }
+      );
+    }
+
+    if (connection?.phone_number) {
+      return NextResponse.json(
+        { error: "Esta cuenta ya tiene un WhatsApp vinculado." },
+        { status: 409 }
+      );
+    }
+
+    // Eliminamos códigos anteriores para que solo exista un código activo.
+    const { error: deleteError } = await supabase
+      .from("whatsapp_link_codes")
+      .delete()
+      .eq("user_id", user.id);
+
+    if (deleteError) {
+      console.error("Error eliminando códigos anteriores:", deleteError);
+
+      return NextResponse.json(
+        { error: "No se pudo preparar un nuevo código de vinculación." },
+        { status: 500 }
+      );
+    }
+
     const expiresAt = new Date(
       Date.now() + 10 * 60 * 1000
     ).toISOString();

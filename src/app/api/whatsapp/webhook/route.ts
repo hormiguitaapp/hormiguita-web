@@ -334,7 +334,7 @@ async function linkWhatsAppWithCode(
     return {
       success: false,
       message:
-        "Ese código de vinculación no existe o no es válido.",
+        "Ese código de vinculación no existe o ya no es válido.",
     };
   }
 
@@ -358,6 +358,33 @@ async function linkWhatsAppWithCode(
 
   const normalizedPhone = normalizePhone(phone);
 
+  // Un número no puede ser tomado automáticamente de otra cuenta.
+  const { data: phoneConnection, error: phoneError } =
+    await supabase
+      .from("whatsapp_connections")
+      .select("user_id")
+      .eq("phone_number", normalizedPhone)
+      .maybeSingle();
+
+  if (phoneError) {
+    throw new Error(
+      `Error comprobando el número de WhatsApp: ${phoneError.message}`
+    );
+  }
+
+  if (
+    phoneConnection &&
+    phoneConnection.user_id !== linkCode.user_id
+  ) {
+    return {
+      success: false,
+      message:
+        "Este número de WhatsApp ya está vinculado a otra cuenta de HormiGUITA.",
+    };
+  }
+
+  // Cada usuario tiene una sola conexión. Si ya existía una conexión propia,
+  // el upsert la reemplaza; si el número pertenece a otro usuario, se rechaza arriba.
   const { error: connectionError } = await supabase
     .from("whatsapp_connections")
     .upsert(
@@ -366,7 +393,7 @@ async function linkWhatsAppWithCode(
         phone_number: normalizedPhone,
       },
       {
-        onConflict: "phone_number",
+        onConflict: "user_id",
       }
     );
 
@@ -376,17 +403,19 @@ async function linkWhatsAppWithCode(
     );
   }
 
+  // Consumimos todos los códigos pendientes de esa cuenta para evitar
+  // que un código viejo pueda volver a utilizarse.
   const { error: usedError } = await supabase
     .from("whatsapp_link_codes")
     .update({
       used_at: new Date().toISOString(),
     })
-    .eq("id", linkCode.id)
+    .eq("user_id", linkCode.user_id)
     .is("used_at", null);
 
   if (usedError) {
     throw new Error(
-      `Error marcando código como utilizado: ${usedError.message}`
+      `Error marcando códigos como utilizados: ${usedError.message}`
     );
   }
 

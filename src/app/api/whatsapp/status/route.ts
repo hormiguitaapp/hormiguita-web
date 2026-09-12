@@ -22,7 +22,7 @@ function getAdminClient() {
   });
 }
 
-export async function POST() {
+export async function GET() {
   try {
     const supabase = await createServerClient();
 
@@ -40,56 +40,27 @@ export async function POST() {
 
     const admin = getAdminClient();
 
-    const { error: codesError } = await admin
-      .from("whatsapp_link_codes")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (codesError) {
-      console.error("Error eliminando códigos de vinculación:", codesError);
-
-      return NextResponse.json(
-        { error: "No se pudieron eliminar los códigos pendientes." },
-        { status: 500 }
-      );
-    }
-
-    const { error: connectionError } = await admin
+    const { data, error } = await admin
       .from("whatsapp_connections")
-      .delete()
-      .eq("user_id", user.id);
-
-    if (connectionError) {
-      console.error("Error desvinculando WhatsApp:", connectionError);
-
-      return NextResponse.json(
-        { error: "No se pudo desvincular WhatsApp." },
-        { status: 500 }
-      );
-    }
-
-    // Verificación final: no devolvemos éxito si todavía quedó una conexión.
-    const { data: remainingConnection, error: verifyError } = await admin
-      .from("whatsapp_connections")
-      .select("id")
+      .select("phone_number")
       .eq("user_id", user.id)
       .maybeSingle();
 
-    if (verifyError || remainingConnection) {
-      console.error("La conexión de WhatsApp no se eliminó correctamente:", verifyError);
+    if (error) {
+      console.error("Error consultando conexión de WhatsApp:", error);
 
       return NextResponse.json(
-        { error: "No se pudo confirmar la desvinculación de WhatsApp." },
+        { error: "No se pudo consultar el estado de WhatsApp." },
         { status: 500 }
       );
     }
 
     return NextResponse.json({
-      success: true,
-      message: "WhatsApp desvinculado correctamente.",
+      connected: !!data?.phone_number,
+      phoneNumber: data?.phone_number ?? null,
     });
   } catch (error) {
-    console.error("Error en unlink:", error);
+    console.error("Error en WhatsApp status:", error);
 
     return NextResponse.json(
       { error: "Error interno del servidor." },
