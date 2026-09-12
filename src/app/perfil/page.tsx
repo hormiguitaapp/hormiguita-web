@@ -63,6 +63,23 @@ export default function PerfilPage() {
   const [error, setError] =
     useState("");
 
+
+  // =========================
+  // WHATSAPP
+  // =========================
+
+  const [whatsappLoading, setWhatsappLoading] =
+    useState(false);
+
+  const [whatsappCode, setWhatsappCode] =
+    useState<string | null>(null);
+
+  const [whatsappExpiresAt, setWhatsappExpiresAt] =
+    useState<string | null>(null);
+
+  const [whatsappCopied, setWhatsappCopied] =
+    useState(false);
+
   // =========================
   // MFA / 2FA
   // =========================
@@ -1085,6 +1102,103 @@ export default function PerfilPage() {
   }
 
   // =========================
+  // WHATSAPP
+  // =========================
+
+  async function generateWhatsAppCode() {
+    setError("");
+    setMessage("");
+    setWhatsappLoading(true);
+    setWhatsappCopied(false);
+
+    try {
+      const response = await fetch(
+        "/api/whatsapp/link-code",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ??
+            "No se pudo generar el código de vinculación."
+        );
+      }
+
+      setWhatsappCode(data.code ?? null);
+      setWhatsappExpiresAt(
+        data.expiresAt ?? null
+      );
+    } catch (err) {
+      console.error(
+        "Error generando código de WhatsApp:",
+        err
+      );
+
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo generar el código de vinculación."
+      );
+    }
+
+    setWhatsappLoading(false);
+  }
+
+  async function copyWhatsAppCode() {
+    if (!whatsappCode) return;
+
+    try {
+      await navigator.clipboard.writeText(
+        whatsappCode
+      );
+
+      setWhatsappCopied(true);
+
+      window.setTimeout(() => {
+        setWhatsappCopied(false);
+      }, 2000);
+    } catch (err) {
+      console.error(
+        "No se pudo copiar el código:",
+        err
+      );
+
+      setError(
+        "No se pudo copiar el código. Copialo manualmente."
+      );
+    }
+  }
+
+  function formatWhatsAppExpiration() {
+    if (!whatsappExpiresAt) {
+      return "10 minutos";
+    }
+
+    const date = new Date(
+      whatsappExpiresAt
+    );
+
+    if (Number.isNaN(date.getTime())) {
+      return "10 minutos";
+    }
+
+    return date.toLocaleTimeString(
+      "es-AR",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  }
+
+  // =========================
   // LOGOUT
   // =========================
 
@@ -1332,6 +1446,168 @@ export default function PerfilPage() {
               </button>
 
             </form>
+
+          </section>
+
+          {/* WHATSAPP */}
+
+          <section className="mt-5 rounded-3xl border border-gray-800 bg-[#111720] p-6 lg:p-8">
+
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+
+              <div className="max-w-2xl">
+
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#27d59b]/20 bg-[#27d59b]/10 text-xl">
+                    💬
+                  </div>
+
+                  <div>
+
+                    <h3 className="text-xl font-bold">
+                      Conectá WhatsApp
+                    </h3>
+
+                    <p className="mt-1 text-sm text-gray-500">
+                      Vinculá tu WhatsApp para usar HormiGUITA directamente desde tus mensajes.
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+              <button
+                type="button"
+                onClick={generateWhatsAppCode}
+                disabled={whatsappLoading}
+                className="shrink-0 rounded-xl bg-[#27d59b] px-5 py-3 font-bold text-[#032119] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {whatsappLoading
+                  ? "Generando..."
+                  : whatsappCode
+                    ? "Generar nuevo código"
+                    : "Conectar WhatsApp"}
+              </button>
+
+            </div>
+
+            {!whatsappCode ? (
+
+              <div className="mt-7 rounded-2xl border border-white/5 bg-[#0b1016] p-5">
+
+                <p className="text-sm font-semibold text-gray-200">
+                  ¿Cómo funciona?
+                </p>
+
+                <ol className="mt-4 space-y-3 text-sm leading-6 text-gray-500">
+
+                  <li>
+                    <span className="mr-2 font-bold text-[#27d59b]">1.</span>
+                    Generá tu código de vinculación.
+                  </li>
+
+                  <li>
+                    <span className="mr-2 font-bold text-[#27d59b]">2.</span>
+                    Enviá ese código por WhatsApp al número oficial de HormiGUITA.
+                  </li>
+
+                  <li>
+                    <span className="mr-2 font-bold text-[#27d59b]">3.</span>
+                    Tu WhatsApp quedará asociado a esta cuenta.
+                  </li>
+
+                </ol>
+
+              </div>
+
+            ) : (
+
+              <div className="mt-7 rounded-2xl border border-[#27d59b]/20 bg-[#0b1016] p-5 sm:p-6">
+
+                <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+
+                  <div>
+
+                    <div className="flex items-center gap-2">
+
+                      <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#27d59b]" />
+
+                      <p className="text-sm font-bold text-[#27d59b]">
+                        Código de vinculación generado
+                      </p>
+
+                    </div>
+
+                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                      Enviá este código desde el WhatsApp que querés vincular a tu cuenta de HormiGUITA.
+                    </p>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={copyWhatsAppCode}
+                    className="rounded-xl border border-gray-700 px-4 py-2 text-sm font-bold text-gray-200 transition hover:bg-white/5"
+                  >
+                    {whatsappCopied
+                      ? "¡Copiado!"
+                      : "Copiar código"}
+                  </button>
+
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-[#27d59b]/20 bg-[#080a0d] px-5 py-6 text-center">
+
+                  <p className="text-xs font-bold tracking-[0.25em] text-gray-600">
+                    TU CÓDIGO
+                  </p>
+
+                  <p className="mt-3 break-all font-mono text-3xl font-black tracking-wider text-[#27d59b] sm:text-4xl">
+                    {whatsappCode}
+                  </p>
+
+                </div>
+
+                <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-500/10 bg-amber-500/5 p-4">
+
+                  <span className="mt-0.5 text-base">
+                    ⏳
+                  </span>
+
+                  <div>
+
+                    <p className="text-sm font-semibold text-amber-200">
+                      Código temporal
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-gray-500">
+                      {whatsappExpiresAt
+                        ? `Válido hasta las ${formatWhatsAppExpiration()}.`
+                        : "Este código es válido durante 10 minutos."}
+                    </p>
+
+                  </div>
+
+                </div>
+
+                <div className="mt-5 rounded-xl border border-white/5 bg-white/[0.02] p-4 text-sm leading-6 text-gray-400">
+
+                  <p className="font-semibold text-gray-200">
+                    Último paso:
+                  </p>
+
+                  <p className="mt-1">
+                    Abrí WhatsApp desde el número que querés conectar y enviá exactamente el código mostrado arriba al WhatsApp oficial de HormiGUITA.
+                  </p>
+
+                </div>
+
+              </div>
+
+            )}
 
           </section>
 
