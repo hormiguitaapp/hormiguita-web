@@ -546,7 +546,8 @@ async function processIncomingMessage(
       if (!result.success) {
         await sendWhatsAppText(
           message.from,
-          result.message
+          result.message ??
+            "No se pudo vincular tu WhatsApp. Intentá nuevamente."
         );
 
         return;
