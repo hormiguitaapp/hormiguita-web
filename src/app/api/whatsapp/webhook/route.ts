@@ -52,7 +52,7 @@ function parseAmount(text: string) {
     .replace(/\s+/g, " ");
 
   const match = normalized.match(
-    /(?<![a-z0-9])([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+(?:[.,][0-9]+)?)[\s]*(millon(?:es)?|millones|palos|lucas|k|mil)?(?![a-z0-9])/i
+    /(?<![a-z0-9])([0-9]{1,3}(?:[.,][0-9]{3})+|[0-9]+(?:[.,][0-9]+)?)[\s]*(millones|millon|palos|lucas|k|mil)?(?![a-z0-9])/i
   );
 
   if (!match) {
@@ -64,15 +64,9 @@ function parseAmount(text: string) {
 
   if (raw.includes(".") && raw.includes(",")) {
     raw = raw.replace(/\./g, "").replace(",", ".");
-  } else if (
-    raw.includes(".") &&
-    /\.\d{3}$/.test(raw)
-  ) {
+  } else if (raw.includes(".") && /\.\d{3}$/.test(raw)) {
     raw = raw.replace(/\./g, "");
-  } else if (
-    raw.includes(",") &&
-    /,\d{3}$/.test(raw)
-  ) {
+  } else if (raw.includes(",") && /,\d{3}$/.test(raw)) {
     raw = raw.replace(/,/g, "");
   } else {
     raw = raw.replace(",", ".");
@@ -108,9 +102,7 @@ function parseAmount(text: string) {
 }
 
 function extractGoalPhrase(text: string) {
-  const clean = text
-    .replace(/\s+/g, " ")
-    .trim();
+  const clean = text.replace(/\s+/g, " ").trim();
 
   const patterns = [
     /\bpara\s+(?:el|la)\s+ahorro\s+(?:del|de la|de el)\s+(.+?)(?:[.!?]|$)/i,
@@ -148,7 +140,7 @@ function looksLikeGoalSaving(text: string) {
   const normalized = normalizeText(text);
 
   return (
-    /\b(separe|separe|separar|separ[eé]|ahorre|ahorre|ahorrar|ahorr[eé]|guarde|guarde|guardar|guard[eé]|aparte|apartar|apart[eé]|puse|poner|meti|meter|deje|dejar|destine|destinar)\b/.test(
+    /\b(separe|separar|ahorre|ahorrar|guarde|guardar|aparte|apartar|puse|poner|meti|meter|deje|dejar|destine|destinar)\b/.test(
       normalized
     ) &&
     /\b(para|objetivo|meta|ahorro)\b/.test(normalized)
@@ -158,10 +150,9 @@ function looksLikeGoalSaving(text: string) {
 function extractLinkCode(text: string | null) {
   if (!text) return null;
 
-  const match = text
-    .trim()
-    .toUpperCase()
-    .match(/^HORMI-(\d{6})$/);
+  const clean = text.trim().toUpperCase();
+
+  const match = clean.match(/\bHORMI\s*-\s*(\d{6})\b/);
 
   return match ? `HORMI-${match[1]}` : null;
 }
@@ -269,8 +260,7 @@ async function transcribeWhatsAppAudio(audioId: string) {
   );
 
   if (!transcriptionResponse.ok) {
-    const errorText =
-      await transcriptionResponse.text();
+    const errorText = await transcriptionResponse.text();
 
     throw new Error(
       `No se pudo transcribir el audio: ${errorText}`
@@ -285,9 +275,7 @@ async function transcribeWhatsAppAudio(audioId: string) {
   const text = transcription.text?.trim();
 
   if (!text) {
-    throw new Error(
-      "La transcripción llegó vacía."
-    );
+    throw new Error("La transcripción llegó vacía.");
   }
 
   return text;
@@ -295,11 +283,12 @@ async function transcribeWhatsAppAudio(audioId: string) {
 
 async function findConnectedUserId(phone: string) {
   const supabase = getAdminClient();
+  const normalizedPhone = normalizePhone(phone);
 
   const { data, error } = await supabase
     .from("whatsapp_connections")
     .select("user_id")
-    .eq("phone_number", normalizePhone(phone))
+    .eq("phone_number", normalizedPhone)
     .maybeSingle();
 
   if (error) {
@@ -316,6 +305,12 @@ async function linkWhatsAppWithCode(
   code: string
 ) {
   const supabase = getAdminClient();
+  const normalizedPhone = normalizePhone(phone);
+
+  console.log("Intentando vincular WhatsApp:", {
+    phone: normalizedPhone,
+    code,
+  });
 
   const { data: linkCode, error: linkCodeError } =
     await supabase
@@ -346,20 +341,16 @@ async function linkWhatsAppWithCode(
     };
   }
 
-  if (
-    new Date(linkCode.expires_at).getTime() < Date.now()
-  ) {
+  if (new Date(linkCode.expires_at).getTime() <= Date.now()) {
     return {
       success: false,
       message:
-        "Ese código de vinculación venció. Generá uno nuevo desde HormiGUITA.",
+        "Ese código venció. Generá uno nuevo desde HormiGUITA.",
     };
   }
 
-  const normalizedPhone = normalizePhone(phone);
-
-  // Un número no puede ser tomado automáticamente de otra cuenta.
-  const { data: phoneConnection, error: phoneError } =
+  // Comprobamos si este número pertenece a otra cuenta.
+  const { data: existingPhone, error: phoneError } =
     await supabase
       .from("whatsapp_connections")
       .select("user_id")
@@ -368,13 +359,13 @@ async function linkWhatsAppWithCode(
 
   if (phoneError) {
     throw new Error(
-      `Error comprobando el número de WhatsApp: ${phoneError.message}`
+      `Error comprobando el número: ${phoneError.message}`
     );
   }
 
   if (
-    phoneConnection &&
-    phoneConnection.user_id !== linkCode.user_id
+    existingPhone &&
+    existingPhone.user_id !== linkCode.user_id
   ) {
     return {
       success: false,
@@ -383,28 +374,36 @@ async function linkWhatsAppWithCode(
     };
   }
 
-  // Cada usuario tiene una sola conexión. Si ya existía una conexión propia,
-  // el upsert la reemplaza; si el número pertenece a otro usuario, se rechaza arriba.
-  const { error: connectionError } = await supabase
-    .from("whatsapp_connections")
-    .upsert(
-      {
-        user_id: linkCode.user_id,
-        phone_number: normalizedPhone,
-      },
-      {
-        onConflict: "user_id",
-      }
-    );
+  // Eliminamos cualquier conexión anterior DE ESTE USUARIO.
+  // Esto evita depender de un UPSERT con una constraint UNIQUE.
+  const { error: deleteOldConnectionError } =
+    await supabase
+      .from("whatsapp_connections")
+      .delete()
+      .eq("user_id", linkCode.user_id);
 
-  if (connectionError) {
+  if (deleteOldConnectionError) {
     throw new Error(
-      `Error vinculando WhatsApp: ${connectionError.message}`
+      `Error eliminando conexión anterior: ${deleteOldConnectionError.message}`
     );
   }
 
-  // Consumimos todos los códigos pendientes de esa cuenta para evitar
-  // que un código viejo pueda volver a utilizarse.
+  // Creamos la nueva conexión.
+  const { error: insertConnectionError } =
+    await supabase
+      .from("whatsapp_connections")
+      .insert({
+        user_id: linkCode.user_id,
+        phone_number: normalizedPhone,
+      });
+
+  if (insertConnectionError) {
+    throw new Error(
+      `Error creando conexión de WhatsApp: ${insertConnectionError.message}`
+    );
+  }
+
+  // Marcamos como usados todos los códigos pendientes de este usuario.
   const { error: usedError } = await supabase
     .from("whatsapp_link_codes")
     .update({
@@ -415,9 +414,14 @@ async function linkWhatsAppWithCode(
 
   if (usedError) {
     throw new Error(
-      `Error marcando códigos como utilizados: ${usedError.message}`
+      `Error marcando código como utilizado: ${usedError.message}`
     );
   }
+
+  console.log("WhatsApp vinculado correctamente:", {
+    userId: linkCode.user_id,
+    phone: normalizedPhone,
+  });
 
   return {
     success: true,
@@ -553,18 +557,26 @@ async function processIncomingMessage(
     return;
   }
 
-  let userId = await findConnectedUserId(
-    message.from
-  );
+  console.log("Procesando mensaje de WhatsApp:", {
+    from: message.from,
+    type: message.type,
+    text: message.text,
+  });
 
-  // Si el número todavía no está vinculado,
-  // comprobamos si el usuario envió un código.
+  let userId = await findConnectedUserId(message.from);
+
+  // =====================================================
+  // VINCULACIÓN POR CÓDIGO
+  // =====================================================
+
   if (
     !userId &&
     message.type === "text" &&
     message.text
   ) {
     const linkCode = extractLinkCode(message.text);
+
+    console.log("Código detectado:", linkCode);
 
     if (linkCode) {
       const result = await linkWhatsAppWithCode(
@@ -575,8 +587,8 @@ async function processIncomingMessage(
       if (!result.success) {
         await sendWhatsAppText(
           message.from,
-          result.message ??
-            "No se pudo vincular tu WhatsApp. Intentá nuevamente."
+          result.message ||
+            "No se pudo vincular tu WhatsApp."
         );
 
         return;
@@ -587,28 +599,26 @@ async function processIncomingMessage(
         "¡Listo! 🐜🎉 Tu WhatsApp quedó conectado correctamente con tu cuenta de HormiGUITA. Ya podés enviarme tus movimientos y ahorros por acá."
       );
 
-      console.log(
-        "WhatsApp vinculado correctamente:",
-        message.from
-      );
-
       return;
     }
   }
 
-  if (!userId) {
-    console.warn(
-      "WhatsApp no conectado a ningún usuario:",
-      message.from
-    );
+  // =====================================================
+  // WHATSAPP SIN VINCULAR
+  // =====================================================
 
+  if (!userId) {
     await sendWhatsAppText(
       message.from,
-      "Tu WhatsApp todavía no está conectado a una cuenta de HormiGUITA. Entrá a tu perfil en la app, generá un código de vinculación y enviámelo por acá."
+      "Tu WhatsApp todavía no está conectado a una cuenta de HormiGUITA. Entrá a Mi cuenta en la app, generá un código de vinculación y enviámelo por acá."
     );
 
     return;
   }
+
+  // =====================================================
+  // MENSAJES FINANCIEROS
+  // =====================================================
 
   let text: string | null = null;
   let source: "whatsapp_text" | "whatsapp_audio";
@@ -637,21 +647,16 @@ async function processIncomingMessage(
   if (!text) {
     await sendWhatsAppText(
       message.from,
-      "No pude obtener el contenido del mensaje. Probá enviándolo nuevamente."
+      "No pude obtener el contenido del mensaje. Probá nuevamente."
     );
 
     return;
   }
 
-  console.log(
-    "WhatsApp texto interpretado:",
-    text
-  );
-
   if (!looksLikeGoalSaving(text)) {
     await sendWhatsAppText(
       message.from,
-      "Entendí el mensaje, pero para cargar un ahorro necesito algo como: “Me separé 200 lucas para el auto”."
+      "Para registrar un ahorro podés decirme algo como: “Me separé 200 lucas para el auto”."
     );
 
     return;
@@ -725,13 +730,11 @@ Ahorro acumulado: ${new Intl.NumberFormat("es-AR", {
 }
 
 export async function GET(request: NextRequest) {
-  const searchParams =
-    request.nextUrl.searchParams;
+  const searchParams = request.nextUrl.searchParams;
 
   const mode = searchParams.get("hub.mode");
   const token = searchParams.get("hub.verify_token");
-  const challenge =
-    searchParams.get("hub.challenge");
+  const challenge = searchParams.get("hub.challenge");
 
   const verifyToken =
     process.env.WHATSAPP_VERIFY_TOKEN;
@@ -763,14 +766,17 @@ export async function POST(request: NextRequest) {
 
     console.log(
       "WhatsApp webhook recibido:",
-      body
+      JSON.stringify(body)
     );
 
-    const message =
-      extractWhatsAppMessage(body);
+    const message = extractWhatsAppMessage(body);
 
     if (message) {
       await processIncomingMessage(message);
+    } else {
+      console.log(
+        "Webhook recibido sin mensaje procesable."
+      );
     }
 
     return NextResponse.json(
@@ -785,7 +791,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        error: "No se pudo procesar el mensaje.",
+        received: true,
       },
       { status: 200 }
     );
